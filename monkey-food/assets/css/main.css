@@ -1,0 +1,104 @@
+/* Monkey Food Admin - Estilo similar a Las Empanadas de Susi */
+
+:root {
+  --brand: #22c55e; /* green-500 */
+  --brand-light: #f0fdf4;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #fffbf5;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Scrollbar hide */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Cards */
+.card {
+  @apply bg-white rounded-2xl border border-gray-200;
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 rounded-xl font-medium text-sm transition-colors;
+}
+.btn-primary {
+  @apply bg-green-500 text-white hover:bg-green-600 active:scale-95;
+}
+.btn-secondary {
+  @apply bg-gray-100 text-gray-600 hover:bg-gray-200;
+}
+
+/* Status badges */
+.status-badge {
+  @apply px-2.5 py-1 rounded-full text-xs font-medium;
+}
+.status-pending {
+  @apply bg-yellow-100 text-yellow-700;
+}
+.status-confirmed {
+  @apply bg-blue-100 text-blue-700;
+}
+.status-preparing {
+  @apply bg-orange-100 text-orange-700;
+}
+.status-delivered {
+  @apply bg-green-100 text-green-700;
+}
+.status-cancelled {
+  @apply bg-red-100 text-red-700;
+}
+
+/* Input */
+.input {
+  @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-green-400;
+}
+
+/* Filter buttons */
+.filter-btn {
+  @apply shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors;
+}
+.filter-btn-active {
+  @apply bg-green-500 text-white;
+}
+.filter-btn-inactive {
+  @apply bg-white text-gray-600 border border-gray-200;
+}
+
+/* Empty state */
+.empty-state {
+  @apply text-center py-16 text-gray-400;
+}
+.empty-state svg {
+  @apply w-12 h-12 mx-auto mb-3 text-gray-300;
+}
