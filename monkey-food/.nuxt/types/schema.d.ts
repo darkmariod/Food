@@ -20,6 +20,12 @@ import { NuxtModule, ModuleDependencyMeta } from '@nuxt/schema'
    },
   }
   interface SharedPublicRuntimeConfig {
+   supabaseUrl: string,
+
+   supabaseAnonKey: string,
+
+   whatsappNumber: string,
+
    supabase: {
       url: string,
 

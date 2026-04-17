@@ -18,66 +18,110 @@ export interface Pedido {
   customer_address: string
   status: 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled'
   total: number
-  items: { product: Bowl; quantity: number }[]
+  notes: string
   created_at: string
+  updated_at: string
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  quantity: number
+  unit_price: number
 }
 
 export const useMenuStore = defineStore('menu', {
   state: () => ({
     bowls: [] as Bowl[],
     pedidos: [] as Pedido[],
+    orderItems: [] as OrderItem[],
     carrito: [] as { product: Bowl; cantidad: number }[],
     loading: false,
-    useSupabase: false // toggle para usar Supabase o localStorage
+    configDiaria: {
+      bowls_total: 10,
+      bowls_vendidos: 0
+    },
+    useSupabase: false
   }),
 
   getters: {
     bowlsAnimal: (state) => state.bowls.filter(b => b.category === 'animal' && b.available),
     bowlsVegetal: (state) => state.bowls.filter(b => b.category === 'vegetal' && b.available),
     totalCarrito: (state) => state.carrito.reduce((sum, item) => sum + (item.product.price * item.cantidad), 0),
+    bowlsDisponibles: (state) => state.configDiaria.bowls_total - state.configDiaria.bowls_vendidos,
     pedidosHoy: (state) => {
       const hoy = new Date().toISOString().split('T')[0]
       return state.pedidos.filter(p => p.created_at.startsWith(hoy))
-    }
+    },
+    pedidosPendientes: (state) => state.pedidos.filter(p => p.status === 'pending'),
+    pedidosConfirmados: (state) => state.pedidos.filter(p => p.status === 'confirmed'),
+    pedidosEntregados: (state) => state.pedidos.filter(p => p.status === 'delivered'),
+    pedidosCobrados: (state) => state.pedidos.filter(p => p.status === 'delivered') // Cobrado = entregado y pagado
   },
 
   actions: {
-    // Cargar productos desde Supabase
-    async loadProducts() {
-      if (!this.useSupabase) return
-      
+    // Cargar productos (bowls) desde Supabase
+    async loadBowls() {
       const client = useSupabaseClient()
-      const { data } = await client
+      const { data, error } = await client
         .from('products')
         .select('*')
         .eq('available', true)
         .order('name')
-      
+
+      if (error) {
+        console.error('Error cargando products:', error)
+        return
+      }
+
       if (data) {
         this.bowls = data.map(p => ({
           id: p.id,
           nombre: p.name,
           descripcion: p.description || '',
-          price: p.price,
-          category: p.category,
-          protein_grams: p.protein_grams,
-          emoji: p.emoji,
+          price: Number(p.price),
+          category: p.category || 'animal',
+          protein_grams: p.protein_grams || '30-40g',
+          emoji: p.emoji || '',
           available: p.available
         }))
       }
     },
 
-    // Cargar pedidos desde Supabase
-    async loadOrders() {
-      if (!this.useSupabase) return
-      
+    // Cargar configuración diaria
+    async loadConfig() {
       const client = useSupabaseClient()
+      const hoy = new Date().toISOString().split('T')[0]
+      
       const { data } = await client
+        .from('config_diaria')
+        .select('*')
+        .eq('fecha', hoy)
+        .single()
+
+      if (data) {
+        this.configDiaria = {
+          bowls_total: data.bowls_total,
+          bowls_vendidos: data.bowls_vendidos
+        }
+      }
+    },
+
+    // Cargar pedidos desde Supabase
+    async loadPedidos() {
+      const client = useSupabaseClient()
+      const { data, error } = await client
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100)
-      
+
+      if (error) {
+        console.error('Error cargando orders:', error)
+        return
+      }
+
       if (data) {
         this.pedidos = data.map(p => ({
           id: p.id,
@@ -85,30 +129,34 @@ export const useMenuStore = defineStore('menu', {
           customer_phone: p.customer_phone,
           customer_address: p.customer_address,
           status: p.status,
-          total: p.total,
-          items: [],
-          created_at: p.created_at
+          total: Number(p.total),
+          notes: p.notes,
+          created_at: p.created_at,
+          updated_at: p.updated_at
         }))
       }
     },
 
-    // Crear pedido en Supabase
-    async crearPedidoSupabase(cliente: string, teléfono: string, dirección: string) {
-      if (!this.useSupabase) return null
+    // Cargar items de un pedido
+    async loadOrderItems(orderId: string) {
+      const client = useSupabaseClient()
+      const { data } = await client
+        .from('order_items')
+        .select('*')
+        .eq('order_id', orderId)
 
+      if (data) {
+        this.orderItems = data
+      }
+    },
+
+    // Crear pedido en Supabase (estructura: orders + order_items)
+    async crearPedidoSupabase(cliente: string, teléfono: string, dirección: string, notas: string) {
       const client = useSupabaseClient()
       
-      // Agrupar items
-      const itemsAgrupados = this.carrito.reduce((acc, item) => {
-        const key = item.product.id
-        if (!acc[key]) {
-          acc[key] = { ...item, cantidad: 0 }
-        }
-        acc[key].cantidad += item.cantidad
-        return acc
-      }, {} as Record<string, { product: Bowl; cantidad: number }>)
+      if (this.carrito.length === 0) return null
 
-      // Crear pedido
+      // 1. Crear pedido en tabla orders
       const { data: pedido, error } = await client
         .from('orders')
         .insert({
@@ -116,69 +164,115 @@ export const useMenuStore = defineStore('menu', {
           customer_phone: teléfono,
           customer_address: dirección,
           status: 'pending',
-          total: this.totalCarrito
+          total: this.totalCarrito,
+          notes: notas
         })
         .select()
         .single()
 
-      if (error || !pedido) {
+      if (error) {
         console.error('Error creando pedido:', error)
         return null
       }
 
-      // Crear items
-      const orderItems = Object.values(itemsAgrupados).map(item => ({
+      // 2. Crear items en tabla order_items
+      const orderItems = this.carrito.map(item => ({
         order_id: pedido.id,
         product_id: item.product.id,
         quantity: item.cantidad,
         unit_price: item.product.price
       }))
 
-      await client.from('order_items').insert(orderItems)
+      const { error: itemsError } = await client
+        .from('order_items')
+        .insert(orderItems)
 
-      // Limpiar carrito
+      if (itemsError) {
+        console.error('Error creando order_items:', itemsError)
+      }
+
+      // 3. Decrementar bowls disponibles
+      await this.decrementarBowls()
+
+      // 4. Limpiar carrito
       this.vaciarCarrito()
       
       return pedido
     },
 
-    // Actualizar estado del pedido
+    // Decrementar bowls disponibles
+    async decrementarBowls() {
+      const client = useSupabaseClient()
+      const hoy = new Date().toISOString().split('T')[0]
+
+      // Obtener config actual
+      const { data: config } = await client
+        .from('config_diaria')
+        .select('*')
+        .eq('fecha', hoy)
+        .single()
+
+      if (config) {
+        // Actualizar
+        await client
+          .from('config_diaria')
+          .update({ bowls_vendidos: config.bowls_vendidos + 1 })
+          .eq('id', config.id)
+      } else {
+        // Crear nuevo registro
+        await client
+          .from('config_diaria')
+          .insert({
+            bowls_total: 10,
+            bowls_vendidos: 1,
+            fecha: hoy
+          })
+      }
+
+      // Actualizar estado local
+      this.configDiaria.bowls_vendidos++
+    },
+
+    // Actualizar estado del pedido (mapeo: pending→pendiente, confirmed→confirmado, etc.)
     async actualizarEstado(pedidoId: string, estado: Pedido['status']) {
-      if (!this.useSupabase) {
-        // Fallback localStorage
-        const pedido = this.pedidos.find(p => p.id === pedidoId)
-        if (pedido) {
-          pedido.status = estado
-          this.saveToStorage()
-        }
+      const client = useSupabaseClient()
+      
+      const { error } = await client
+        .from('orders')
+        .update({ 
+          status: estado,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pedidoId)
+
+      if (error) {
+        console.error('Error actualizando estado:', error)
         return
       }
 
-      const client = useSupabaseClient()
-      await client
-        .from('orders')
-        .update({ status: estado })
-        .eq('id', pedidoId)
+      // Actualizar estado local
+      const pedido = this.pedidos.find(p => p.id === pedidoId)
+      if (pedido) {
+        pedido.status = estado
+      }
     },
 
     // Suscribirse a cambios realtime
-    subscribeToOrders() {
-      if (!this.useSupabase) return () => {}
-
+    subscribeToRealtime() {
       const client = useSupabaseClient()
       
+      // Suscribirse a orders
       const channel = client
-        .channel('orders-changes')
+        .channel('monkey-food-changes')
         .on('postgres_changes', { 
           event: '*', 
           schema: 'public', 
           table: 'orders' 
         }, (payload) => {
+          console.log('Cambio en orders:', payload)
           if (payload.eventType === 'INSERT') {
-            // Nuevo pedido - recargar
-            this.loadOrders()
+            this.loadPedidos()
           } else if (payload.eventType === 'UPDATE') {
-            // Actualizar pedido específico
             const idx = this.pedidos.findIndex(p => p.id === payload.new.id)
             if (idx !== -1) {
               this.pedidos[idx].status = payload.new.status
@@ -218,7 +312,8 @@ export const useMenuStore = defineStore('menu', {
     },
 
     // Crear pedido local (sin Supabase)
-    crearPedidoLocal(cliente: string, teléfono: string, dirección: string): Pedido {
+    crearPedidoLocal(cliente: string, teléfono: string, dirección: string, notas: string): Pedido {
+      const bowl = this.carrito[0]?.product
       const pedido: Pedido = {
         id: Date.now().toString(),
         customer_name: cliente,
@@ -226,8 +321,9 @@ export const useMenuStore = defineStore('menu', {
         customer_address: dirección,
         status: 'pending',
         total: this.totalCarrito,
-        items: [...this.carrito.map(item => ({ product: item.product, quantity: item.cantidad }))],
-        created_at: new Date().toISOString()
+        notes: notas,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }
       this.pedidos.push(pedido)
       this.vaciarCarrito()
@@ -247,21 +343,26 @@ export const useMenuStore = defineStore('menu', {
       localStorage.setItem('monkey-food-pedidos', JSON.stringify(this.pedidos))
     },
 
-    // Inicializar - decide entre Supabase o local
+    // Inicializar
     async initialize() {
       // Si hay variables de entorno de Supabase, usar Supabase
-      const supabaseUrl = useRuntimeConfig().public.supabaseUrl
+      const config = useRuntimeConfig()
+      const supabaseUrl = config.public.supabaseUrl || 'https://almfsjxrajxmyfygrtdj.supabase.co'
+      
+      console.log('Supabase URL:', supabaseUrl)
+      
       if (supabaseUrl && supabaseUrl !== 'https://placeholder.supabase.co') {
         this.useSupabase = true
-        await this.loadProducts()
-        await this.loadOrders()
+        await this.loadBowls()
+        await this.loadConfig()
+        await this.loadPedidos()
         
         // Suscribirse a realtime
-        this.subscribeToOrders()
+        this.subscribeToRealtime()
       } else {
         // Usar datos locales hardcodeados
         this.bowls = [
-          { id: '1', nombre: 'Pollo Power ⭐', descripcion: 'Arroz relleno (arveja + zanahoria + refrito), pollo desmechado', price: 4, category: 'animal', protein_grams: '35-40g', emoji: '🍗', available: true },
+          { id: '1', nombre: 'Pollo Power', descripcion: 'Arroz relleno (arveja + zanahoria + refrito), pollo desmechado', price: 4, category: 'animal', protein_grams: '35-40g', emoji: '🍗', available: true },
           { id: '2', nombre: 'Seco Fit de Pollo', descripcion: 'Pollo con tomate y pimiento, arroz + ensalada', price: 4, category: 'animal', protein_grams: '30-35g', emoji: '🍗', available: true },
           { id: '3', nombre: 'Seco Fit de Carne', descripcion: 'Carne guisada con tomate y pimiento, arroz + ensalada', price: 4, category: 'animal', protein_grams: '30-35g', emoji: '🥩', available: true },
           { id: '4', nombre: 'Soya Power', descripcion: 'Arroz relleno (arveja + zanahoria + refrito), carne de soya', price: 4, category: 'vegetal', protein_grams: '30-35g', emoji: '🫘', available: true },

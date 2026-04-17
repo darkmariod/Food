@@ -649,9 +649,12 @@ const _inlineRuntimeConfig = {
     }
   },
   "public": {
+    "supabaseUrl": "https://almfsjxrajxmyfygrtdj.supabase.co",
+    "supabaseAnonKey": "sb_publishable_5wCGWfuWq5Y8JOMM8sVT5w_f_4YvogO",
+    "whatsappNumber": "593968464331",
     "supabase": {
-      "url": "https://your-project.supabase.co",
-      "key": "your-anon-key",
+      "url": "https://almfsjxrajxmyfygrtdj.supabase.co",
+      "key": "sb_publishable_5wCGWfuWq5Y8JOMM8sVT5w_f_4YvogO",
       "redirect": false,
       "redirectOptions": {
         "login": "/login",
@@ -661,7 +664,7 @@ const _inlineRuntimeConfig = {
         "saveRedirectToCookie": false
       },
       "cookieName": "sb",
-      "cookiePrefix": "sb-your-project-auth-token",
+      "cookiePrefix": "sb-almfsjxrajxmyfygrtdj-auth-token",
       "useSsrCookies": true,
       "cookieOptions": {
         "maxAge": 28800,
@@ -2059,7 +2062,7 @@ const _ELody6UoAmTxXaklGCSF1EiRMXJiBYhJU5q5dxpV60g = (function(nitro) {
 
 const rootDir = "/Users/mariopazmino/Documents/GitHub/Food/monkey-food";
 
-const appHead = {"meta":[{"charset":"utf-8"},{"name":"description","content":"Bowls altos en proteína - Riobamba"},{"name":"viewport","content":"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"}],"link":[{"rel":"icon","type":"image/x-icon","href":"/favicon.ico"}],"style":[],"script":[],"noscript":[],"title":"Monkey Food Fitness 🐒"};
+const appHead = {"meta":[{"charset":"utf-8"},{"name":"description","content":"Bowls altos en proteina - Riobamba"},{"name":"viewport","content":"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"}],"link":[{"rel":"icon","type":"image/x-icon","href":"/favicon.ico"}],"style":[],"script":[],"noscript":[],"title":"Monkey Food Fitness"};
 
 const appRootTag = "div";
 

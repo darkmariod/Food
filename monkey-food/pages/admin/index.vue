@@ -49,7 +49,6 @@
             <p class="font-semibold text-gray-900 truncate">{{ order.customer_name || 'Sin cliente' }}</p>
             <p class="text-xs text-gray-400">
               {{ formatDateTime(order.created_at) }}
-              <span class="ml-2 text-green-600 font-medium">{{ order.items?.length || 0 }} bowls</span>
             </p>
           </div>
           <span :class="['status-badge', statusClass(order.status)]">
@@ -58,19 +57,17 @@
         </div>
 
         <p class="text-sm text-gray-600 mb-2 truncate">
-          {{ order.customer_address }}
+          {{ order.customer_address || 'Sin dirección' }}
         </p>
         
         <p class="text-xs text-gray-500 mb-2">
-          {{ order.customer_phone }} | {{ order.customer_phone }}
+          {{ order.customer_phone }}
         </p>
 
+        <!-- Mostrar items del pedido -->
         <div class="flex justify-between items-center mb-2">
           <div class="text-sm text-gray-600">
-            <span v-for="(item, idx) in order.items" :key="idx">
-              {{ item.product?.nombre || 'Producto' }} x{{ item.quantity }}
-              <span v-if="idx < order.items.length - 1">, </span>
-            </span>
+            <span>{{ order.bowl_nombre || 'Bowl' }} x1</span>
           </div>
           <span class="font-bold text-green-600 text-sm">${{ order.total }}</span>
         </div>
@@ -123,6 +120,11 @@ const pendientesCount = computed(() => orders.value.filter(o => o.status === 'pe
 const entregadosCount = computed(() => orders.value.filter(o => o.status === 'preparing' || o.status === 'delivered').length)
 
 const bowlsDisponibles = computed(() => {
+  // Si usa Supabase, tomar del store
+  if (menuStore.useSupabase) {
+    return menuStore.configDiaria.bowls_total - menuStore.configDiaria.bowls_vendidos
+  }
+  // Fallback localStorage
   if (typeof window === 'undefined') return 10
   const config = localStorage.getItem('monkey-admin-config')
   if (config) {

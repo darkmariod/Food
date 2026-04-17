@@ -105,19 +105,13 @@
               {{ statusLabel(selectedOrder.status) }}
             </span>
           </div>
-        </div>
-
-        <div class="border-t mt-4 pt-4">
-          <h4 class="font-medium mb-2">Items:</h4>
-          <div class="space-y-2">
-            <div v-for="(item, idx) in selectedOrder.items" :key="idx" class="flex justify-between text-sm">
-              <span>{{ item.product?.nombre || 'Producto' }} x{{ item.quantity }}</span>
-              <span class="font-medium">${{ item.product?.price * item.quantity }}</span>
-            </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Total:</span>
+            <span class="font-bold text-green-600">${{ selectedOrder.total }}</span>
           </div>
-          <div class="border-t mt-2 pt-2 flex justify-between font-bold">
-            <span>Total:</span>
-            <span class="text-green-600">${{ selectedOrder.total }}</span>
+          <div v-if="selectedOrder.notes" class="flex justify-between">
+            <span class="text-gray-500">Notas:</span>
+            <span class="font-medium">{{ selectedOrder.notes }}</span>
           </div>
         </div>
 

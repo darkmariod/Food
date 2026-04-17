@@ -1,0 +1,500 @@
+{
+  "name": "Monkey Food - Bot WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition_1",
+              "leftValue": "={{ $json.body.data.key.remoteJid }}",
+              "rightValue": "@g.us",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "281f9db3-d09e-4b86-a3a9-530215de6cb9",
+      "name": "Solo Chats Privados",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-1904, 960]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond_extended",
+                    "leftValue": "={{ $json.body.data.messageType }}",
+                    "rightValue": "conversation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "texto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond_audio",
+                    "leftValue": "={{ $json.body.data.messageType }}",
+                    "rightValue": "audioMessage",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d88e2960-d581-454f-8a4b-98a95e6664c1",
+      "name": "Tipo de Mensaje",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [-1328, 976],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== 1. OBTENER DATA DEL WEBHOOK =====\nconst webhookData = $('Webhook Evolution API').first().json;\n\n// Soporte para distintas estructuras posibles\nconst data = webhookData?.body?.data || webhookData?.data || webhookData;\n\n// ===== 2. DATOS BÁSICOS =====\nconst messageType = data?.messageType || 'unknown';\n\nlet userMessage = '';\nlet phoneNumber = data?.key?.remoteJid?.replace('@s.whatsapp.net', '') \n  || data?.sender \n  || data?.from \n  || `user_${Date.now()}`;\nlet pushName = data?.pushName || 'Cliente';\n\n// ===== 3. PROCESAR MENSAJE =====\nif (messageType === 'conversation') {\n  userMessage = data?.message?.conversation || '';\n}\nelse if (messageType === 'extendedTextMessage') {\n  userMessage = data?.message?.extendedTextMessage?.text || '';\n}\nelse if (messageType === 'audioMessage') {\n  try {\n    const transcription = $('Transcribir con Whisper').first();\n    userMessage = transcription?.json?.text || '[Audio no transcrito]';\n  } catch (e) {\n    userMessage = '[Error al transcribir audio]';\n  }\n}\nelse {\n  userMessage = '[Tipo de mensaje no soportado]';\n}\n\n// ===== 4. SUPABASE CONFIG =====\nconst SUPABASE_URL = 'https://almfsjxrajxmyfygrtdj.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E'; // ⚠️ IMPORTANTE: usar service_role key\n\nconst headers = {\n  apikey: SUPABASE_KEY,\n  Authorization: `Bearer ${SUPABASE_KEY}`,\n  'Content-Type': 'application/json'\n};\n\n// ===== 5. TRAER BOWLS DISPONIBLES =====\nlet bowls = [];\n\ntry {\n  const response = await fetch(\n    `${SUPABASE_URL}/rest/v1/products?available=eq.true`,\n    {\n      method: 'GET',\n      headers\n    }\n  );\n\n  const bowlsResult = await response.json();\n\n  if (Array.isArray(bowlsResult)) {\n    bowls = bowlsResult;\n  }\n\n} catch (error) {\n  console.log('Error trayendo bowls:', error);\n}\n\n// ===== 6. BOWLS DISPONIBLES HOY =====\nlet bowlsDisponibles = 0;\n\ntry {\n  const configResponse = await fetch(\n    `${SUPABASE_URL}/rest/v1/config_diaria?fecha=eq.${new Date().toISOString().split('T')[0]}`,\n    {\n      method: 'GET',\n      headers\n    }\n  );\n\n  const configResult = await configResponse.json();\n  \n  if (Array.isArray(configResult) && configResult.length > 0) {\n    const config = configResult[0];\n    bowlsDisponibles = config.bowls_total - config.bowls_vendidos;\n  }\n\n} catch (error) {\n  console.log('Error trayendo config:', error);\n}\n\n// ===== 7. OUTPUT FINAL =====\nreturn [\n  {\n    json: {\n      chatInput: userMessage,\n      sessionId: phoneNumber,\n      sessionKey: phoneNumber,\n      phoneNumber: phoneNumber,\n      pushName: pushName,\n      instanceName: webhookData?.body?.instance || webhookData?.instance || '',\n      messageType: messageType,\n      timestamp: new Date().toISOString(),\n      bowls_available: bowls.map(b => `${b.name} - $${b.price}`).join(', '),\n      bowls_count: bowlsDisponibles,\n      bowls: bowls\n    }\n  }\n];"
+      },
+      "id": "0bd2d8fc-24ad-475b-989e-363831a1316b",
+      "name": "Preparar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-576, 960]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 1024,
+          "temperature": 0.7
+        }
+      },
+      "id": "a91172e6-d221-4359-a9bc-c57a92f27dd2",
+      "name": "OpenAI GPT-4o",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [0, 928],
+      "credentials": {
+        "openAiApi": {
+          "id": "OiBQ8etCEDPiOztg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {
+          "language": "es"
+        }
+      },
+      "id": "ed99bf65-9eda-4263-a548-4f7a87f9abcd",
+      "name": "Transcribir con Whisper",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [-800, 1040],
+      "credentials": {
+        "openAiApi": {
+          "id": "OiBQ8etCEDPiOztg",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Preparar Datos').item.json.instanceName }}",
+        "remoteJid": "={{ $('Preparar Datos').item.json.phoneNumber }}@s.whatsapp.net",
+        "messageText": "={{ $json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [688, 816],
+      "id": "f3484867-7cab-4d0e-96d4-765c9a697599",
+      "name": "Enviar texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "YzIzUGmJlyVgdwbN",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat-api",
+        "operation": "get-media-base64",
+        "instanceName": "=={{ $('Webhook Evolution API').first().json.body.instance }}",
+        "messageId": "=={{ $('Webhook Evolution API').first().json.body.data.key.id }}"
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [-1024, 1040],
+      "id": "cbe4e4cf-cc3d-48cf-8261-c591decfa26a",
+      "name": "Obtener media en base64",
+      "credentials": {
+        "evolutionApi": {
+          "id": "YzIzUGmJlyVgdwbN",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "guardrails": {
+          "nsfw": {
+            "value": {
+              "threshold": 0.7
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.guardrails",
+      "typeVersion": 2,
+      "position": [-352, 960],
+      "id": "0b9585f5-9866-4cef-a048-1bd74d4013a2",
+      "name": "Guardrails1"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Preparar Datos').item.json.instanceName }}",
+        "remoteJid": "={{ $('Preparar Datos').item.json.phoneNumber }}@s.whatsapp.net",
+        "messageText": "Lo siento. No puedo ayudarte con eso.",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [112, 1104],
+      "id": "c46ad3f6-9c58-451e-b97a-1228715c0234",
+      "name": "Enviar texto1",
+      "credentials": {
+        "evolutionApi": {
+          "id": "YzIzUGmJlyVgdwbN",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [-288, 1184],
+      "id": "0468b5c3-bdd0-411a-8e68-4ba4450eaf1e",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "OiBQ8etCEDPiOztg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Preparar Datos').item.json.chatInput }}",
+        "options": {
+          "systemMessage": "# IDENTIDAD Y ROL\n\nEres **Mono**, el asistente virtual de **Monkey Food Fitness**. Tu rol es ser el primer punto de contacto con los clientes a través de WhatsApp, tomando pedidos de bowls saludables y proporcionando información de manera amable, cálida y eficiente.\n\n---\n\n# INFORMACIÓN DEL NEGOCIO\n\n## Datos de Contacto\n- **Nombre**: Monkey Food Fitness\n- **Ubicación**: Riobamba, Ecuador\n- **Horario**: Lunes a Domingo, 12:00 - 22:00 hs\n\n## Bowls Disponibles Hoy\n{{ $('Preparar Datos').item.json.bowls_available }}\n\n## Bowls restantes: {{ $('Preparar Datos').item.json.bowls_count }}\n\n## Precio\n- Todos los bowls: $4 USD\n\n## Métodos de Pago\n- Efectivo\n- Transferencia bancaria\n- MercadoPago\n- PIX\n\n## Delivery y Retiro\n- **Delivery**: Riobamba centro y sectores cercanos\n- **Retiro**: Av. Principal, Riobamba\n- **Tiempo de entrega**: 20-40 minutos\n\n---\n\n# HERRAMIENTAS DISPONIBLES\n\n## 1. manage_order\n- **Uso**: Guarda o cancela pedidos en Supabase\n- **Acciones disponibles**:\n  - `save`: Guarda y confirma el pedido automáticamente\n  - `cancel`: Cancela el pedido\n\n---\n\n# FLUJOS DE TRABAJO\n\n## Flujo 1: Tomar Nuevo Pedido\n\n1. Saludar al cliente de forma cálida\n2. Informar bowls disponibles si pregunta o quiere pedir\n3. Identificar qué bowl desea\n4. Identificar cantidad\n5. Preguntar delivery o retiro\n   - Si delivery: pedir dirección\n6. Pedir nombre del cliente\n7. Mostrar resumen completo y pedir confirmación explícita\n8. SOLO después de recibir confirmación → llamar a manage_order\n9. Confirmar al cliente que el pedido fue recibido\n10. Informar métodos de pago\n\n## Flujo 2: Cancelar Pedido\n\n1. Identificar el pedido a cancelar\n2. Confirmar con el cliente\n3. Llamar a manage_order con action \"cancel\"\n\n## Flujo 3: Consulta de Información\n\n1. Responder la consulta\n2. Ofrecer tomar un pedido si corresponde\n\n---\n\n# REGLAS DE NEGOCIO\n\n## Restricciones\n- **Bowls disponibles**: Solo los que hay en la lista de hoy\n- **Stock**: Si bowls_disponibles = 0, informar que no hay más bowls\n\n## Validaciones Obligatorias\n1. NUNCA guardar el pedido sin confirmación explícita\n2. NUNCA ofrecer bowls que no están disponibles\n3. NUNCA inventar datos\n4. SIEMPRE verificar datos antes de guardar\n5. NUNCA llamar a manage_order más de una vez\n\n---\n\n# DATOS DEL CLIENTE ACTUAL\n- **Teléfono**: {{ $('Preparar Datos').item.json.phoneNumber }}\n- **Nombre WhatsApp**: {{ $('Preparar Datos').item.json.pushName }}\n\n---\n\n# DIRECTRICES DE COMUNICACIÓN\n\n## Tono y Estilo\n- **Cálida y cercana**: Como si fueras una persona real\n- **Española**: Usá vos siempre\n- **Concisa**: Mensajes breves y directos\n- **Natural**: Nunca robótica\n\n## Formato de Mensajes\n- Usar emojis con moderación (1-2 por mensaje máximo)\n- Emojis recomendados: 🍲 💪 😊 ✅ 📍\n- Usar saltos de línea para mejorar legibilidad\n\n## Ejemplos de Tono\n\n**Saludo inicial:**\nHola! 🍲 Soy Mono, el asistente de Monkey Food Fitness. Como estas? En que te puedo ayudar?\n\n**Confirmación de pedido:**\nListo! Tu pedido esta confirmado!\n\n📋 2 bowls de Pollo Power\n📍 Delivery: Av. Oriental 456\n💰 Total: $8\n\nPodés pagar en efectivo o por transferencia. Gracias por elegirnos!\n\n---\n\n# MANEJO DE SITUACIONES ESPECIALES\n\n**Si no hay bowls disponibles:**\nLo siento, hoy ya llegamos al límite de bowls disponibles (10). Puedes pedir para mañana!\n\n**Si el cliente pide algo que no hay:**\nHoy tenemos estos bowls disponibles: {{ $('Preparar Datos').item.json.bowls_available }}. Cual te tempta?\n\n---\n\n# RECORDATORIOS IMPORTANTES\n\n1. **Stock limitado**: Siempre verificar bowls_disponibles\n2. **Secuencia para pedidos**: save SOLO después de confirmación explícita\n3. **Memoria**: Recordar el contexto para no repetir preguntas\n\n---\n\n# INICIO DE CONVERSACIÓN\n\nCuando recibas el primer mensaje:\n1. Saludar de forma cálida\n2. Presentar brevemente como Mono\n3. Preguntar en qué podés ayudar\n\nRecordá que hoy es: {{ $now }}"
+        }
+      },
+      "id": "4462626b-c4e9-494d-b316-068a9baa1be0",
+      "name": "Mono",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [48, 704],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://almfsjxrajxmyfygrtdj.supabase.co/rest/v1/products?available=eq.true",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E\",\n  \"Content-Type\": \"application/json\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [-1616, 960],
+      "id": "3983c760-ccb5-4e4b-bf4d-c5a58c3ff41a",
+      "name": "get_bowls",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Preparar Datos').item.json.sessionId }}",
+        "tableName": "chat_memory",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [128, 928],
+      "id": "966e29a3-4aef-4611-bfed-797fcc83795e",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "HcBeAORf18E0XpoT",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const action = query.action;\nconst customer_name = query.customer_name;\nconst customer_phone = query.customer_phone;\nconst customer_address = query.customer_address;\nconst bowl_id = query.bowl_id;\nconst bowl_nombre = query.bowl_nombre;\nconst total = query.total;\nconst notes = query.notes;\nconst order_id = query.order_id;\n\nconst SUPABASE_URL = 'https://almfsjxrajxmyfygrtdj.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E';\n\nconst headers = {\n  'apikey': SUPABASE_KEY,\n  'Authorization': `Bearer ${SUPABASE_KEY}`,\n  'Content-Type': 'application/json',\n  'Prefer': 'return=representation'\n};\n\ntry {\n  if (action === 'save') {\n    // 1. Crear pedido\n    const saveResult = await this.helpers.httpRequest({\n      method: 'POST',\n      url: `${SUPABASE_URL}/rest/v1/orders`,\n      headers,\n      body: JSON.stringify({\n        customer_name: customer_name,\n        customer_phone: customer_phone,\n        customer_address: customer_address || null,\n        status: 'pending',\n        total: total,\n        notes: notes\n      })\n    });\n\n    const order = Array.isArray(saveResult) ? saveResult[0] : saveResult;\n    const newOrderId = order.id;\n\n    // 2. Crear order_items\n    if (bowl_id && bowl_nombre) {\n      await this.helpers.httpRequest({\n        method: 'POST',\n        url: `${SUPABASE_URL}/rest/v1/order_items`,\n        headers,\n        body: JSON.stringify({\n          order_id: newOrderId,\n          product_id: bowl_id,\n          quantity: 1,\n          unit_price: total\n        })\n      });\n    }\n\n    // 3. Actualizar a confirmed\n    await this.helpers.httpRequest({\n      method: 'PATCH',\n      url: `${SUPABASE_URL}/rest/v1/orders?id=eq.${newOrderId}`,\n      headers,\n      body: JSON.stringify({ status: 'confirmed' })\n    });\n\n    // 4. Decrementar bowls disponibles\n    const configResponse = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `${SUPABASE_URL}/rest/v1/config_diaria?fecha=eq.${new Date().toISOString().split('T')[0]}`,\n      headers\n    });\n    \n    const configData = Array.isArray(configResponse) ? configResponse[0] : configResponse;\n    \n    if (configData && configData.id) {\n      await this.helpers.httpRequest({\n        method: 'PATCH',\n        url: `${SUPABASE_URL}/rest/v1/config_diaria?id=eq.${configData.id}`,\n        headers,\n        body: JSON.stringify({ bowls_vendidos: configData.bowls_vendidos + 1 })\n      });\n    }\n\n    return `Pedido guardado y confirmado. ID: ${newOrderId}`;\n\n  } else if (action === 'cancel') {\n    await this.helpers.httpRequest({\n      method: 'PATCH',\n      url: `${SUPABASE_URL}/rest/v1/orders?id=eq.${order_id}`,\n      headers,\n      body: JSON.stringify({ status: 'cancelled' })\n    });\n    return 'Pedido cancelado exitosamente.';\n  }\n\n  return `action no reconocida: ${action}`;\n\n} catch(e) {\n  return `ERROR: ${e.message}`;\n}",
+        "specifyInputSchema": true,
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action\": {\n      \"type\": \"string\",\n      \"enum\": [\"save\", \"confirm\", \"cancel\"],\n      \"description\": \"Accion: save para guardar pedido, cancel para cancelar\"\n    },\n    \"customer_name\": {\n      \"type\": \"string\",\n      \"description\": \"Nombre del cliente\"\n    },\n    \"customer_phone\": {\n      \"type\": \"string\",\n      \"description\": \"Telefono del cliente\"\n    },\n    \"customer_address\": {\n      \"type\": \"string\",\n      \"description\": \"Direccion de entrega (solo para delivery)\"\n    },\n    \"bowl_id\": {\n      \"type\": \"string\",\n      \"description\": \"ID del bowl seleccionado\"\n    },\n    \"bowl_nombre\": {\n      \"type\": \"string\",\n      \"description\": \"Nombre del bowl\"\n    },\n    \"total\": {\n      \"type\": \"number\",\n      \"description\": \"Total en dolares\"\n    },\n    \"notes\": {\n      \"type\": \"string\",\n      \"description\": \"Notas adicionales\"\n    },\n    \"order_id\": {\n      \"type\": \"string\",\n      \"description\": \"ID del pedido (requerido para cancel)\"\n    }\n  },\n  \"required\": [\"action\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [256, 928],
+      "id": "b5caa66c-db4d-4bc2-a857-117d2ba75d4d",
+      "name": "manage_order"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monkey-food-bot",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-2160, 960],
+      "id": "0dc707dd-0e5e-4731-848d-3bd39e813018",
+      "name": "Webhook Evolution API",
+      "webhookId": "monkey-food-bot"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Solo Chats Privados": {
+      "main": [
+        [
+          {
+            "node": "get_bowls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de Mensaje": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Obtener media en base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos": {
+      "main": [
+        [
+          {
+            "node": "Guardrails1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Mono",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribir con Whisper": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener media en base64": {
+      "main": [
+        [
+          {
+            "node": "Transcribir con Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardrails1": {
+      "main": [
+        [
+          {
+            "node": "Mono",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar texto1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Guardrails1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mono": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_bowls": {
+      "main": [
+        [
+          {
+            "node": "Tipo de Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Mono",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manage_order": {
+      "ai_tool": [
+        [
+          {
+            "node": "Mono",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Solo Chats Privados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "monkey-food-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "monkey-food-bot",
+  "tags": []
+}
