@@ -1,0 +1,69 @@
+{
+  "name": "Monkey Food - Bot Simple (Sin IA)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monkey-food",
+        "options": {}
+      },
+      "id": "webhook1",
+      "name": "1️⃣ Webhook Recibir",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer datos del mensaje\nconst payload = $json;\nconst mensajes = payload?.messages || [payload];\nconst msg = mensajes[0] || payload;\n\nconst phone = msg?.from || 'unknown';\nconst texto = (msg?.body || msg?.text || '').toLowerCase().trim();\nconst nombre = msg?.pushName || 'Cliente';\n\nreturn [{json: {\n  phone: phone,\n  nombre: nombre,\n  texto: texto,\n  es_nuevo: texto === 'hola' || texto === 'buenas' || texto === ' inicio'\n}}];"
+      },
+      "id": "procesar",
+      "name": "2️⃣ Extraer Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Guardar pedido en Supabase\nconst data = $json;\n\nconst SUPABASE_URL = 'https://almfsjxrajxmyfygrtdj.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E';\n\nconst headers = {\n  'apikey': SUPABASE_KEY,\n  'Authorization': 'Bearer ' + SUPABASE_KEY,\n  'Content-Type': 'application/json',\n  'Prefer': 'return=representation'\n};\n\nconst pedido = {\n  customer_name: data.nombre || 'Cliente WhatsApp',\n  customer_phone: data.phone,\n  customer_address: data.direccion || 'Por confirmar',\n  status: 'pending',\n  total: 4,\n  notes: 'Bowls: ' + (data.bowl || '1') + ' | Delivery: ' + (data.entrega || 'por confirmar')\n};\n\ntry {\n  const result = await this.helpers.httpRequest({\n    method: 'POST',\n    url: SUPABASE_URL + '/rest/v1/orders',\n    headers: headers,\n    body: JSON.stringify(pedido)\n  });\n  return [{json: {success: true, pedido: result}}];\n} catch(e) {\n  return [{json: {success: false, error: e.message}}];\n}"
+      },
+      "id": "guardar",
+      "name": "3️⃣ Guardar Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://gate.whapi.cloud/messages/text",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerType": "Bearer",
+        "specifyHeaders": true,
+        "jsonHeaders": "{\n  \"Authorization\": \"Bearer {{ $credentials.token }}\",\n  \"Content-Type\": \"application/json\"\n}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {"name": "phone", "value": "={{ $json.phone }}"},
+            {"name": "body", "value": "={{ $json.respuesta }}"}
+          ]
+        }
+      },
+      "id": "enviar",
+      "name": "4️⃣ Responder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [600, 300]
+    }
+  ],
+  "connections": {
+    "1️⃣ Webhook Recibir": {"main": [[{"node": "2️⃣ Extraer Datos", "type": "main", "index": 0}]]},
+    "2️⃣ Extraer Datos": {"main": [[{"node": "4️⃣ Responder", "type": "main", "index": 0}]]},
+    "4️⃣ Responder": {"main": [[{"node": "3️⃣ Guardar Pedido", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "staticData": {},
+  "tags": [],
+  "active": false,
+  "id": "monkey-food-simple"
+}
