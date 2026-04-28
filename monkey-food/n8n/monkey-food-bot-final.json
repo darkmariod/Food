@@ -1,0 +1,227 @@
+{
+  "name": "Monkey Food - Bot Simple (Adaptado)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monkey-food",
+        "options": {}
+      },
+      "id": "webhook1",
+      "name": "1️⃣ Recibir Mensaje",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer datos del mensaje de Whapi.Cloud\nconst payload = $json;\nconst mensajes = payload?.messages || [payload];\nconst msg = mensajes[0] || payload;\n\nconst phone = msg?.from || msg?.phone || 'unknown';\nconst texto = (msg?.body || msg?.text || '').toLowerCase().trim();\nconst nombre = msg?.pushName || 'Cliente';\n\nreturn [{json: {\n  phone: phone,\n  nombre: nombre,\n  texto: texto\n}}];"
+      },
+      "id": "procesar",
+      "name": "2️⃣ Procesar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://gate.whapi.cloud/messages/text",
+        "method": "POST",
+        "sendHeaders": true,
+        "specifyHeaders": true,
+        "jsonHeaders": "{\n  \"Authorization\": \"Bearer LXnlfmFG839SAJUdzM6M62VLAL3dYUax\",\n  \"Content-Type\": \"application/json\"\n}",
+        "sendBody": true,
+        "specifyBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {"name": "phone", "value": "={{ $json.phone }}"},
+            {"name": "body", "value": "={{ $json.respuesta }}"}
+          ]
+        }
+      },
+      "id": "enviar",
+      "name": "3️⃣ Enviar a WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Guardar pedido en Supabase de Monkey Food\nconst data = $json;\n\nconst SUPABASE_URL = 'https://almfsjxrajxmyfygrtdj.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E';\n\nconst headers = {\n  'apikey': SUPABASE_KEY,\n  'Authorization': 'Bearer ' + SUPABASE_KEY,\n  'Content-Type': 'application/json',\n  'Prefer': 'return=representation'\n};\n\n\nconst pedido = {\n  customer_name: data.nombre || 'Cliente WhatsApp',\n  customer_phone: data.phone,\n  customer_address: data.direccion || 'Por confirmar',\n  status: 'pending',\n  total: 4,\n  notes: 'Pedido WhatsApp - ' + (data.bowl || 'Bowl')\n};\n\n\ntry {\n  const result = await this.helpers.httpRequest({\n    method: 'POST',\n    url: SUPABASE_URL + '/rest/v1/orders',\n    headers: headers,\n    body: JSON.stringify(pedido)\n  });\n  return [{json: {success: true, pedido: result}}];\n} catch(e) {\n  return [{json: {success: false, error: e.message}}];\n}"
+      },
+      "id": "guardar",
+      "name": "4️⃣ Guardar Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  {"leftValue": "={{ $json.texto }}", "rightValue": "hola"},
+                  {"leftValue": "={{ $json.texto }}", "rightValue": "buenas"},
+                  {"leftValue": "={{ $json.texto }}", "rightValue": "inicio"}
+                ],
+                "combinator": "or"
+              },
+              "outputKey": "menu"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {"leftValue": "={{ $json.texto }}", "rightValue": "1"}
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "pollo"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {"leftValue": "={{ $json.texto }}", "rightValue": "2"}
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "beef"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true },
+                "conditions": [
+                  {"leftValue": "={{ $json.texto }}", "rightValue": "3"}
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "veggie"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [600, 300],
+      "alwaysOutputData": true,
+      "id": "switch1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Responder menú\nconst data = $('2️⃣ Procesar').first().json;\nconst respuesta = `🍲 *Hola! Soy Mono de Monkey Food Fitness* 🍲\n\nBienvenido! Nuestros bowls saludables:\n\n1️⃣ *Pollo Power* - $4\n2️⃣ *Beef Blast* - $4\n3️⃣ *Veggie Zone* - $4\n\nTodos incluyen arroz integral, proteína, vegetales frescos y salsa especial.\n\nResponde con el *número* del bowl que quieras!`;\n\n\nreturn [{json: {\n  phone: data.phone,\n  nombre: data.nombre,\n  texto: data.texto,\n  respuesta: respuesta\n}}];"
+      },
+      "id": "resp-menu",
+      "name": "5️⃣ Responder Menú",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confirmar bowl y pedir datos\nconst data = $('2️⃣ Procesar').first().json;\nlet bowl = '';\nif (data.texto === '1') bowl = 'Pollo Power';\nelse if (data.texto === '2') bowl = 'Beef Blast';\nelse if (data.texto === '3') bowl = 'Veggie Zone';\n\nconst respuesta = `Perfecto! 🍲\n\nElegiste: *${bowl}* - $4\n\nComo lo buscas?\n\n1️⃣ *Delivery* (envio a tu casa)\n2️⃣ *Retiro* (pasas a buscar)`;\n\nreturn [{json: {\n  phone: data.phone,\n  nombre: data.nombre,\n  texto: data.texto,\n  bowl: bowl,\n  respuesta: respuesta\n}}];"
+      },
+      "id": "resp-bowl",
+      "name": "6️⃣ Confirmar Bowl",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pedir dirección\nconst data = $('2️⃣ Procesar').first().json;\n\nconst respuesta = `Ok, delivery! 📍\n\nPor favor, escribinos tu *dirección completa* para la entrega.`;\n\nreturn [{json: {\n  phone: data.phone,\n  nombre: data.nombre,\n  texto: data.texto,\n  respuesta: respuesta\n}}];"
+      },
+      "id": "resp-dir",
+      "name": "7️⃣ Pedir Dirección",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Finalizar pedido\nconst data = $json;\n\nconst respuesta = `✅ *Pedido confirmado!* 🎉\n\n📋 Bowl: ${data.bowl}\n📍 Delivery\n💰 Total: $4\n\nTe vamos a contactar para confirmar el pago.\n\nGracias por tu pedido! 🍲`;\n\nreturn [{json: {\n  phone: data.phone,\n  nombre: data.nombre,\n  bowl: data.bowl,\n  direccion: data.texto,\n  respuesta: respuesta\n}}];"
+      },
+      "id": "resp-finish",
+      "name": "8️⃣ Finalizar Pedido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Confirmar retiro\nconst data = $json;\n\nconst respuesta = `✅ *Pedido confirmado!* 🎉\n\n📋 Bowl: ${data.bowl}\n📍 Retiro en: Av. Principal, Riobamba\n💰 Total: $4\n\nTe avisamos cuando esté listo para que vengas a buscar! 🍲`;\n\nreturn [{json: {\n  phone: data.phone,\n  nombre: data.nombre,\n  bowl: data.bowl,\n  respuesta: respuesta\n}}];"
+      },
+      "id": "resp-retiro",
+      "name": "9️⃣ Confirmar Retiro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No entendió\nconst data = $('2️⃣ Procesar').first().json;\n\nconst respuesta = `Perdón, no entendí 📝\n\n\nEscribí *hola* para ver nuestro menú de bowls!`;\n\n\nreturn [{json: {\n  phone: data.phone,\n  nombre: data.nombre,\n  respuesta: respuesta\n}}];"
+      },
+      "id": "resp-default",
+      "name": "🔄 No Entendí",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 540]
+    }
+  ],
+  "connections": {
+    "1️⃣ Recibir Mensaje": {
+      "main": [[{"node": "2️⃣ Procesar", "type": "main", "index": 0}]]
+    },
+    "2️⃣ Procesar": {
+      "main": [[{"node": "4️⃣ Switch", "type": "main", "index": 0}]]
+    },
+    "4️⃣ Switch": {
+      "main": [
+        [{"node": "5️⃣ Responder Menú", "type": "main", "index": 0}],
+        [{"node": "6️⃣ Confirmar Bowl", "type": "main", "index": 0}],
+        [{"node": "7️⃣ Pedir Dirección", "type": "main", "index": 0}],
+        [{"node": "🔄 No Entendí", "type": "main", "index": 0}]
+      ]
+    },
+    "5️⃣ Responder Menú": {
+      "main": [[{"node": "3️⃣ Enviar a WhatsApp", "type": "main", "index": 0}]]
+    },
+    "6️⃣ Confirmar Bowl": {
+      "main": [[{"node": "3️⃣ Enviar a WhatsApp", "type": "main", "index": 0}]]
+    },
+    "7️⃣ Pedir Dirección": {
+      "main": [[{"node": "3️⃣ Enviar a WhatsApp", "type": "main", "index": 0}]]
+    },
+    "🔄 No Entendí": {
+      "main": [[{"node": "3️��� Enviar a WhatsApp", "type": "main", "index": 0}]]
+    },
+    "3️⃣ Enviar a WhatsApp": {
+      "main": [[{"node": "4️⃣ Guardar Pedido", "type": "main", "index": 0}]]
+    },
+    "4️⃣ Switch": {
+      "main": [
+        [{"node": "5️⃣ Responder Menú", "type": "main", "index": 0}],
+        [{"node": "6️⃣ Confirmar Bowl", "type": "main", "index": 0}],
+        [{"node": "8️⃣ Finalizar Pedido", "type": "main", "index": 0}],
+        [{"node": "🔄 No Entendí", "type": "main", "index": 0}]
+      ]
+    },
+    "8️⃣ Finalizar Pedido": {
+      "main": [[{"node": "3️⃣ Enviar a WhatsApp", "type": "main", "index": 0}]]
+    },
+    "9️⃣ Confirmar Retiro": {
+      "main": [[{"node": "3️⃣ Enviar a WhatsApp", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "active": false,
+  "id": "monkey-food-bot-simple"
+}
