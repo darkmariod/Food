@@ -1,0 +1,136 @@
+{
+  "name": "Monkey Food - OpenWA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monkey-food-whatsapp",
+        "options": {}
+      },
+      "id": "webhook-recibir",
+      "name": "Webhook Recibir",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json;\nconst msgPayload = payload.payload || payload;\nconst key = msgPayload.key || {};\nconst message = msgPayload.message || {};\n\nconst chatId = key.remoteJid || msgPayload.from || '';\nconst pushName = msgPayload.pushName || 'Cliente';\nconst text = (\n  message.conversation ||\n  message.extendedTextMessage?.text ||\n  msgPayload.text ||\n  ''\n).toLowerCase().trim();\n\nreturn [{ json: { chatId, text, pushName } }];"
+      },
+      "id": "parsear-mensaje",
+      "name": "Parsear Mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  { "leftValue": "={{ $json.text }}", "rightValue": "hola" },
+                  { "leftValue": "={{ $json.text }}", "rightValue": "buenas" },
+                  { "leftValue": "={{ $json.text }}", "rightValue": "inicio" }
+                ],
+                "combinator": "or"
+              },
+              "outputKey": "saludo"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false },
+                "conditions": [
+                  { "leftValue": "={{ $json.text }}", "rightValue": "menu" },
+                  { "leftValue": "={{ $json.text }}", "rightValue": "menú" }
+                ],
+                "combinator": "or"
+              },
+              "outputKey": "menu"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [600, 300],
+      "alwaysOutputData": true,
+      "id": "router",
+      "name": "Router"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\nconst nombre = data.pushName || 'Cliente';\n\nconst text = `¡Hola ${nombre}! 🍲\n\nSoy *Mono*, el asistente virtual de Monkey Food Fitness.\n\nEscribí *menú* para ver nuestros bowls disponibles.`;\n\nreturn [{ json: { chatId: data.chatId, text } }];"
+      },
+      "id": "responder-saludo",
+      "name": "Responder Saludo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIGURACIÓN Supabase ===\n// Cambiá estos valores si usás otro proyecto\nconst SUPABASE_URL = 'https://almfsjxrajxmyfygrtdj.supabase.co';\nconst SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbWZzanhyYWp4bXlmeWdydGRqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjA4MjgxNCwiZXhwIjoyMDkxNjU4ODE0fQ.Xl2UET3CuRVpXDamKW1_wMJJYcxQWihpzuL0TaCLn_E';\n// ===============================\n\nconst data = $json;\nconst chatId = data.chatId;\n\nconst headers = {\n  'apikey': SUPABASE_KEY,\n  'Authorization': `Bearer ${SUPABASE_KEY}`,\n  'Content-Type': 'application/json'\n};\n\nconst products = await this.helpers.httpRequest({\n  method: 'GET',\n  url: `${SUPABASE_URL}/rest/v1/products?select=*&available=eq.true&order=name`,\n  headers\n});\n\nconst rows = products.map((p, i) =>\n  `${i + 1}. ${p.emoji || '🍲'} *${p.name}* - $${p.price}`\n).join('\\n');\n\nconst text = `🍲 *MENÚ MONKEY FOOD* 🍲\n\nBowls disponibles:\n\n${rows}\n\n💰 Todos a *$4*\n📍 Riobamba\n\nEscribí el *número* del bowl que quieras!`;\n\nreturn [{ json: { chatId, text } }];"
+      },
+      "id": "armar-menu-dinamico",
+      "name": "Armar Menú Dinámico",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst text = `Perdón, no entendí 📝\n\nEscribí *hola* para saludar o *menú* para ver los bowls.`;\n\nreturn [{ json: { chatId: data.chatId, text } }];"
+      },
+      "id": "no-entendi",
+      "name": "No Entendí",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 560]
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CONFIGURACIÓN OpenWA ===\n// Cambiá según tu instancia de OpenWA\nconst OPENWA_BASE_URL = 'http://localhost:2886';\nconst OPENWA_API_KEY = 'monkey_food_secure_key';\nconst OPENWA_SESSION_ID = 'default';\n// =============================\n\nconst data = $json;\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${OPENWA_BASE_URL}/api/sessions/${OPENWA_SESSION_ID}/messages/send-text`,\n  headers: {\n    'Content-Type': 'application/json',\n    'X-API-Key': OPENWA_API_KEY\n  },\n  body: JSON.stringify({\n    chatId: data.chatId,\n    text: data.text\n  })\n});\n\nreturn [{ json: { success: true, chatId: data.chatId } }];"
+      },
+      "id": "enviar-a-openwa",
+      "name": "Enviar a OpenWA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 350]
+    }
+  ],
+  "connections": {
+    "Webhook Recibir": {
+      "main": [[{"node": "Parsear Mensaje", "type": "main", "index": 0}]]
+    },
+    "Parsear Mensaje": {
+      "main": [[{"node": "Router", "type": "main", "index": 0}]]
+    },
+    "Router": {
+      "main": [
+        [{"node": "Responder Saludo", "type": "main", "index": 0}],
+        [{"node": "Armar Menú Dinámico", "type": "main", "index": 0}],
+        [{"node": "No Entendí", "type": "main", "index": 0}]
+      ]
+    },
+    "Responder Saludo": {
+      "main": [[{"node": "Enviar a OpenWA", "type": "main", "index": 0}]]
+    },
+    "Armar Menú Dinámico": {
+      "main": [[{"node": "Enviar a OpenWA", "type": "main", "index": 0}]]
+    },
+    "No Entendí": {
+      "main": [[{"node": "Enviar a OpenWA", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "active": false,
+  "id": "monkey-food-openwa"
+}
