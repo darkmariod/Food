@@ -93,7 +93,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// === CONFIGURACIÓN OpenWA ===\n// Cambiá según tu instancia de OpenWA\nconst OPENWA_BASE_URL = 'http://localhost:2886';\nconst OPENWA_API_KEY = 'monkey_food_secure_key';\nconst OPENWA_SESSION_ID = 'default';\n// =============================\n\nconst data = $json;\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${OPENWA_BASE_URL}/api/sessions/${OPENWA_SESSION_ID}/messages/send-text`,\n  headers: {\n    'Content-Type': 'application/json',\n    'X-API-Key': OPENWA_API_KEY\n  },\n  body: JSON.stringify({\n    chatId: data.chatId,\n    text: data.text\n  })\n});\n\nreturn [{ json: { success: true, chatId: data.chatId } }];"
+        "jsCode": "// === CONFIGURACIÓN OpenWA ===\n// Cambiá según tu instancia de OpenWA\nconst OPENWA_BASE_URL = 'http://openwa:2886';\nconst OPENWA_API_KEY = 'monkey_food_secure_key';\nconst OPENWA_SESSION_ID = 'default';\n// =============================\n\nconst data = $json;\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: `${OPENWA_BASE_URL}/api/sessions/${OPENWA_SESSION_ID}/messages/send-text`,\n  headers: {\n    'Content-Type': 'application/json',\n    'X-API-Key': OPENWA_API_KEY\n  },\n  body: JSON.stringify({\n    chatId: data.chatId,\n    text: data.text\n  })\n});\n\nreturn [{ json: { success: true, chatId: data.chatId } }];"
       },
       "id": "enviar-a-openwa",
       "name": "Enviar a OpenWA",

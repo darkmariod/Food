@@ -1,0 +1,25 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_ENV_VARIABLES=/home/node/.n8n/env-vars.json
+      - N8N_METRICS=false
+      - N8N_PERSONALIZATION_ENABLED=false
+    restart: unless-stopped
+
+  openwa:
+    image: openwa/openwa:latest
+    ports:
+      - "2886:2886"
+    environment:
+      - OPENWA_API_KEY=monkey_food_secure_key
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
