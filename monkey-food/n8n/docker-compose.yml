@@ -1,3 +1,5 @@
+# Local stack: n8n + Evolution API (WhatsApp) + Postgres/Redis (required by Evolution v2)
+# Setup: copy .env.example to .env in this folder and fill in the values.
 services:
   n8n:
     image: n8nio/n8n:latest
@@ -7,19 +9,60 @@ services:
       - n8n_data:/home/node/.n8n
     environment:
       - N8N_SECURE_COOKIE=false
-      - WEBHOOK_URL=http://localhost:5678/
-      - N8N_ENV_VARIABLES=/home/node/.n8n/env-vars.json
-      - N8N_METRICS=false
+      - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678}/
       - N8N_PERSONALIZATION_ENABLED=false
+      # Allow Code nodes to read $env (the bot reads its config from env vars)
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      # Exposed to Code nodes via $env
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - EVOLUTION_URL=http://evolution:8080
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-monkeyfood}
     restart: unless-stopped
 
-  openwa:
-    image: openwa/openwa:latest
+  evolution:
+    image: evoapicloud/evolution-api:latest
     ports:
-      - "2886:2886"
+      # Host port 8082: 8080/8081 are taken by other local projects.
+      # Inside the Docker network it is still http://evolution:8080.
+      - "8082:8080"
     environment:
-      - OPENWA_API_KEY=monkey_food_secure_key
+      - SERVER_URL=${EVOLUTION_PUBLIC_URL:-http://localhost:8082}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:${POSTGRES_PASSWORD}@evolution-db:5432/evolution?schema=public
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://evolution-redis:6379/6
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_LOCAL_ENABLED=false
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      - evolution-db
+      - evolution-redis
+    restart: unless-stopped
+
+  evolution-db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=evolution
+    volumes:
+      - evolution_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  evolution-redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - evolution_redis_data:/data
     restart: unless-stopped
 
 volumes:
   n8n_data:
+  evolution_instances:
+  evolution_db_data:
+  evolution_redis_data:

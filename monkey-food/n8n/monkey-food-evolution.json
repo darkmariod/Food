@@ -1,0 +1,65 @@
+{
+  "name": "Monkey Food - Evolution",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monkey-food-whatsapp",
+        "options": {}
+      },
+      "id": "webhook-recibir",
+      "name": "Webhook Recibir",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Evolution API MESSAGES_UPSERT payload\nconst body = $json.body || $json;\n\n// Ignore events that are not incoming messages\nif (body.event && String(body.event).toLowerCase() !== 'messages.upsert') {\n  return [];\n}\n\nconst data = body.data || {};\nconst key = data.key || {};\nconst remoteJid = key.remoteJid || '';\n\n// Ignore own messages, groups and status broadcasts\nif (key.fromMe || !remoteJid || remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast') {\n  return [];\n}\n\nconst msg = data.message || {};\nconst rawText = msg.conversation || (msg.extendedTextMessage && msg.extendedTextMessage.text) || '';\nif (!rawText.trim()) {\n  return [];\n}\n\nreturn [{ json: {\n  phone: remoteJid.split('@')[0],\n  pushName: data.pushName || 'Cliente',\n  rawText: rawText.trim(),\n  text: rawText.toLowerCase().trim()\n} }];"
+      },
+      "id": "parsear-mensaje",
+      "name": "Parsear Mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Conversation state machine backed by Supabase.\n// Config comes from n8n environment (see docker-compose.yml) — no secrets in this file.\nconst SUPABASE_URL = $env.SUPABASE_URL;\nconst SUPABASE_KEY = $env.SUPABASE_SERVICE_ROLE_KEY;\n\nconst http = this.helpers.httpRequest.bind(this.helpers);\nconst baseHeaders = {\n  'apikey': SUPABASE_KEY,\n  'Authorization': 'Bearer ' + SUPABASE_KEY,\n  'Content-Type': 'application/json'\n};\n\nconst sb = (method, path, body, prefer) => http({\n  method,\n  url: SUPABASE_URL + '/rest/v1/' + path,\n  headers: prefer ? { ...baseHeaders, 'Prefer': prefer } : baseHeaders,\n  body: body ? JSON.stringify(body) : undefined\n});\n\nconst { phone, pushName, text, rawText } = $json;\n\nconst saveState = (state, data) => sb(\n  'POST',\n  'conversation_state?on_conflict=phone',\n  { phone, state, data, updated_at: new Date().toISOString() },\n  'resolution=merge-duplicates'\n);\n\nconst menuText = (products) => {\n  const rows = products\n    .map((p, i) => (i + 1) + '. ' + (p.emoji || '🍲') + ' *' + p.name + '* - $' + p.price)\n    .join('\\n');\n  return 'Bowls disponibles:\\n\\n' + rows + '\\n\\nEscribe el *número* del bowl que quieras.';\n};\n\nlet reply;\n\ntry {\n  const stateRows = await sb('GET', 'conversation_state?select=*&phone=eq.' + encodeURIComponent(phone));\n  let state = stateRows[0] ? stateRows[0].state : 'idle';\n  let data = (stateRows[0] && stateRows[0].data) || {};\n\n  const createOrder = async (address, modeNote) => {\n    try {\n      await sb('POST', 'customers?on_conflict=phone',\n        { phone, name: pushName, address },\n        'resolution=merge-duplicates');\n    } catch (e) {\n      // customers table may not exist — the order itself carries the data\n    }\n    const orders = await sb('POST', 'orders', {\n      customer_name: pushName,\n      customer_phone: phone,\n      customer_address: address,\n      status: 'pending',\n      total: data.bowl.price,\n      notes: modeNote + ' - ' + data.bowl.name\n    }, 'return=representation');\n    await sb('POST', 'order_items', {\n      order_id: orders[0].id,\n      product_id: data.bowl.id,\n      quantity: 1,\n      unit_price: data.bowl.price\n    });\n    return orders[0];\n  };\n\n  const wantsMenu = ['hola', 'buenas', 'inicio', 'menu', 'menú', 'empezar', 'cancelar'].includes(text);\n\n  if (wantsMenu || state === 'idle') {\n    const products = await sb('GET', 'products?select=id,name,price,emoji&available=eq.true&order=name');\n    data = { products: products.map(p => ({ id: p.id, name: p.name, price: Number(p.price), emoji: p.emoji })) };\n    await saveState('choosing_bowl', data);\n    reply = '¡Hola ' + pushName + '! 🍲 Soy *Mono*, el asistente de Monkey Food Fitness.\\n\\n' + menuText(data.products);\n  } else if (state === 'choosing_bowl') {\n    const idx = parseInt(text, 10);\n    const products = data.products || [];\n    if (idx >= 1 && idx <= products.length) {\n      data.bowl = products[idx - 1];\n      await saveState('choosing_delivery', data);\n      reply = 'Elegiste: *' + data.bowl.name + '* - $' + data.bowl.price + ' ✅\\n\\n¿Cómo lo quieres?\\n\\n1️⃣ *Delivery* (te lo enviamos)\\n2️⃣ *Retiro* (pasas a buscar)';\n    } else {\n      reply = 'No te entendí 🙈 Responde con el *número* del bowl (por ejemplo *1*), o escribe *menú* para verlo de nuevo.';\n    }\n  } else if (state === 'choosing_delivery') {\n    if (text === '1') {\n      await saveState('awaiting_address', data);\n      reply = '¡Perfecto! 📍 Escríbenos tu *dirección completa* para la entrega.';\n    } else if (text === '2') {\n      await createOrder('Retiro en local', 'Retiro');\n      await saveState('idle', {});\n      reply = '✅ *Pedido confirmado*\\n\\n📋 ' + data.bowl.name + '\\n📍 Retiro en local\\n💰 Total: $' + data.bowl.price + '\\n\\nTe avisamos cuando esté listo. ¡Gracias! 🍲';\n    } else {\n      reply = 'Responde *1* para delivery o *2* para retiro 🙂';\n    }\n  } else if (state === 'awaiting_address') {\n    await createOrder(rawText, 'Delivery');\n    await saveState('idle', {});\n    reply = '✅ *Pedido confirmado*\\n\\n📋 ' + data.bowl.name + '\\n📍 Delivery a: ' + rawText + '\\n💰 Total: $' + data.bowl.price + '\\n\\nTe contactamos para coordinar el pago. ¡Gracias! 🍲';\n  } else {\n    reply = 'Escribe *menú* para ver los bowls disponibles 🍲';\n  }\n} catch (error) {\n  reply = 'Ups, tuvimos un problema técnico 🙈 Intenta de nuevo en un momento.';\n}\n\nreturn [{ json: { number: phone, reply } }];"
+      },
+      "id": "cerebro-bot",
+      "name": "Cerebro del Bot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Send reply through Evolution API v2: POST /message/sendText/{instance} with flat { number, text }\nconst EVOLUTION_URL = $env.EVOLUTION_URL || 'http://evolution:8080';\nconst EVOLUTION_API_KEY = $env.EVOLUTION_API_KEY;\nconst INSTANCE = $env.EVOLUTION_INSTANCE || 'monkeyfood';\n\nconst { number, reply } = $json;\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: EVOLUTION_URL + '/message/sendText/' + INSTANCE,\n  headers: {\n    'apikey': EVOLUTION_API_KEY,\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({ number, text: reply })\n});\n\nreturn [{ json: { success: true, number } }];"
+      },
+      "id": "enviar-whatsapp",
+      "name": "Enviar WhatsApp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Recibir": {
+      "main": [[{ "node": "Parsear Mensaje", "type": "main", "index": 0 }]]
+    },
+    "Parsear Mensaje": {
+      "main": [[{ "node": "Cerebro del Bot", "type": "main", "index": 0 }]]
+    },
+    "Cerebro del Bot": {
+      "main": [[{ "node": "Enviar WhatsApp", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "active": false,
+  "id": "monkey-food-evolution"
+}
