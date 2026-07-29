@@ -310,24 +310,7 @@ onMounted(async () => {
 });
 
 const enviarPedido = async () => {
-    // Crear pedido local
-    menuStore.crearPedidoLocal(
-        nombreCliente.value,
-        teléfonoCliente.value,
-        direcciónCliente.value,
-    );
-    menuStore.saveToStorage();
-
-    // Reducir bowls disponibles
-    const bowlsRestantes = Math.max(
-        0,
-        bowlsDisponibles.value -
-            menuStore.carrito.reduce((sum, item) => sum + item.cantidad, 0),
-    );
-    const config = { bowlsDisponibles: bowlsRestantes, horaCierre: "2PM" };
-    localStorage.setItem("monkey-admin-config", JSON.stringify(config));
-
-    // Mensaje WhatsApp SIN emojis
+    // 1. Armar el resumen ANTES de guardar (crearPedidoSupabase vacía el carrito)
     const itemsAgrupados = menuStore.carrito.reduce(
         (acc, item) => {
             const key = item.product.nombre;
@@ -340,14 +323,40 @@ const enviarPedido = async () => {
         {} as Record<string, { product: any; cantidad: number }>,
     );
 
-    let mensaje = `Hola, quiero pedir:\n\n`;
-    mensaje += `Pedido:\n`;
+    const resumenItems = Object.values(itemsAgrupados)
+        .map((item) => `${item.cantidad}x ${item.product.nombre}`)
+        .join(", ");
+    const total = menuStore.totalCarrito;
 
+    // Notas que verá el dueño en el panel: qué pidió + hora de entrega
+    const notas = `${resumenItems} | Entrega: ${horaEntrega.value || "A convenir"}`;
+
+    // 2. Guardar el pedido en Supabase (aparece en el panel del dueño)
+    let guardado = null;
+    try {
+        guardado = await menuStore.crearPedidoSupabase(
+            nombreCliente.value,
+            teléfonoCliente.value,
+            direcciónCliente.value,
+            notas,
+        );
+    } catch (e) {
+        console.error("Error guardando pedido:", e);
+    }
+
+    if (!guardado) {
+        alert(
+            "Ups, no pudimos registrar tu pedido. Probá de nuevo o escribinos por WhatsApp.",
+        );
+        return;
+    }
+
+    // 3. Abrir WhatsApp con el pedido ya redactado
+    let mensaje = `Hola, quiero pedir:\n\n`;
     Object.values(itemsAgrupados).forEach((item) => {
         mensaje += `- ${item.cantidad}x ${item.product.nombre}\n`;
     });
-
-    mensaje += `\nTotal: $${menuStore.totalCarrito}\n\n`;
+    mensaje += `\nTotal: $${total}\n\n`;
     mensaje += `Direccion: ${direcciónCliente.value}\n`;
     mensaje += `Hora de entrega: ${horaEntrega.value || "A convenir"}\n`;
     mensaje += `Cliente: ${nombreCliente.value}\n`;

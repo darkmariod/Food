@@ -31,6 +31,16 @@ export interface OrderItem {
   unit_price: number
 }
 
+export interface ProductoInput {
+  nombre: string
+  descripcion: string
+  price: number
+  category: string
+  protein_grams: string
+  emoji: string
+  available: boolean
+}
+
 export const useMenuStore = defineStore('menu', {
   state: () => ({
     bowls: [] as Bowl[],
@@ -61,13 +71,14 @@ export const useMenuStore = defineStore('menu', {
   },
 
   actions: {
-    // Cargar productos (bowls) desde Supabase
+    // Cargar productos (bowls) desde Supabase.
+    // Traemos TODOS (activos e inactivos): el admin los administra;
+    // la tienda del cliente ya filtra por `available` en los getters.
     async loadBowls() {
       const client = useSupabaseClient()
       const { data, error } = await client
         .from('products')
         .select('*')
-        .eq('available', true)
         .order('name')
 
       if (error) {
@@ -255,6 +266,66 @@ export const useMenuStore = defineStore('menu', {
       if (pedido) {
         pedido.status = estado
       }
+    },
+
+    // === CRUD de productos (menú) — persiste en Supabase ===
+    async crearProducto(payload: ProductoInput) {
+      const client = useSupabaseClient()
+      const { error } = await client.from('products').insert({
+        name: payload.nombre,
+        description: payload.descripcion,
+        price: payload.price,
+        category: payload.category,
+        protein_grams: payload.protein_grams,
+        emoji: payload.emoji,
+        available: payload.available
+      })
+      if (error) {
+        console.error('Error creando producto:', error)
+        throw error
+      }
+      await this.loadBowls()
+    },
+
+    async actualizarProducto(id: string, payload: ProductoInput) {
+      const client = useSupabaseClient()
+      const { error } = await client.from('products').update({
+        name: payload.nombre,
+        description: payload.descripcion,
+        price: payload.price,
+        category: payload.category,
+        protein_grams: payload.protein_grams,
+        emoji: payload.emoji,
+        available: payload.available
+      }).eq('id', id)
+      if (error) {
+        console.error('Error actualizando producto:', error)
+        throw error
+      }
+      await this.loadBowls()
+    },
+
+    async eliminarProducto(id: string) {
+      const client = useSupabaseClient()
+      const { error } = await client.from('products').delete().eq('id', id)
+      if (error) {
+        console.error('Error eliminando producto:', error)
+        throw error
+      }
+      await this.loadBowls()
+    },
+
+    async toggleDisponible(id: string) {
+      const bowl = this.bowls.find(b => b.id === id)
+      if (!bowl) return
+      const nuevo = !bowl.available
+      const client = useSupabaseClient()
+      const { error } = await client.from('products').update({ available: nuevo }).eq('id', id)
+      if (error) {
+        console.error('Error cambiando disponibilidad:', error)
+        throw error
+      }
+      bowl.available = nuevo
     },
 
     // Suscribirse a cambios realtime

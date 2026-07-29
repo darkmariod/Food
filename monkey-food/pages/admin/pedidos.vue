@@ -28,15 +28,24 @@
 
     <!-- Buscador -->
     <div class="relative mb-4">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
       </svg>
       <input
         type="text"
         v-model="search"
-        placeholder="Buscar por nombre..."
-        class="input pl-9"
+        placeholder="Buscar por nombre o teléfono..."
+        class="input"
+        style="padding-left: 2.5rem; padding-right: 2.25rem;"
       />
+      <button
+        v-if="search"
+        @click="search = ''"
+        class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 text-sm"
+        aria-label="Limpiar búsqueda"
+      >
+        ✕
+      </button>
     </div>
 
     <!-- Resumen -->
@@ -192,9 +201,13 @@ const filteredOrders = computed(() => {
     result = result.filter(o => o.status === statusFilter.value)
   }
   
-  // Buscador
+  // Buscador: por nombre o teléfono
   if (search.value.trim()) {
-    result = result.filter(o => o.customer_name?.toLowerCase().includes(search.value.toLowerCase()))
+    const q = search.value.toLowerCase().trim()
+    result = result.filter(o =>
+      o.customer_name?.toLowerCase().includes(q) ||
+      o.customer_phone?.toLowerCase().includes(q)
+    )
   }
   
   return result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
