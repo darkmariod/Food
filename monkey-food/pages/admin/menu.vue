@@ -96,7 +96,10 @@
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3 min-w-0">
-            <span class="text-2xl">{{ bowl.emoji || '🍽️' }}</span>
+            <div class="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+              <img v-if="bowl.image_url" :src="bowl.image_url" :alt="bowl.nombre" class="w-full h-full object-cover" />
+              <span v-else class="text-2xl">{{ bowl.emoji || '🍽️' }}</span>
+            </div>
             <div class="min-w-0">
               <p class="font-semibold text-gray-900 truncate">{{ bowl.nombre }}</p>
               <p class="text-xs text-gray-500">${{ bowl.price }} · {{ bowl.category === 'vegetal' ? 'Vegetal' : 'Animal' }}</p>
@@ -141,6 +144,37 @@
         <div v-if="formError" class="bg-red-100 text-red-700 px-3 py-2 rounded-xl text-sm mb-3">{{ formError }}</div>
 
         <div class="space-y-3">
+          <!-- Foto del plato -->
+          <div>
+            <label class="text-xs text-gray-500 mb-1 block">Foto del plato</label>
+            <div class="flex items-center gap-3">
+              <div class="w-20 h-20 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                <img v-if="form.image_url" :src="form.image_url" alt="foto" class="w-full h-full object-cover" />
+                <span v-else class="text-3xl">{{ form.emoji || '🍽️' }}</span>
+              </div>
+              <div class="flex-1">
+                <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
+                <button
+                  type="button"
+                  @click="fileInput?.click()"
+                  :disabled="subiendoFoto"
+                  class="w-full bg-gray-100 text-gray-700 py-2 rounded-xl text-sm font-medium active:scale-95 transition disabled:opacity-50"
+                >
+                  {{ subiendoFoto ? 'Subiendo...' : (form.image_url ? 'Cambiar foto' : 'Subir foto') }}
+                </button>
+                <button
+                  v-if="form.image_url"
+                  type="button"
+                  @click="form.image_url = ''"
+                  class="w-full mt-1 text-xs text-red-500"
+                >
+                  Quitar foto (usar emoji)
+                </button>
+                <p class="text-xs text-gray-400 mt-1">JPG o PNG, hasta 5MB. Si no ponés foto, se usa el emoji.</p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label class="text-xs text-gray-500 mb-1 block">Nombre *</label>
             <input v-model="form.nombre" class="input" placeholder="Ej: Pollo Power" />
@@ -257,7 +291,8 @@ const emptyForm = (): ProductoInput => ({
   category: 'animal',
   protein_grams: '30-40g',
   emoji: '🍽️',
-  available: true
+  available: true,
+  image_url: ''
 })
 const form = reactive<ProductoInput>(emptyForm())
 
@@ -269,6 +304,33 @@ const setForm = (v: ProductoInput) => {
   form.protein_grams = v.protein_grams
   form.emoji = v.emoji
   form.available = v.available
+  form.image_url = v.image_url
+}
+
+// --- Subida de foto ---
+const fileInput = ref<HTMLInputElement | null>(null)
+const subiendoFoto = ref(false)
+
+const onFileChange = async (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    formError.value = 'La foto es muy pesada (máx 5MB).'
+    target.value = ''
+    return
+  }
+  subiendoFoto.value = true
+  formError.value = ''
+  try {
+    const url = await menuStore.subirFoto(file)
+    form.image_url = url
+  } catch (err) {
+    formError.value = 'No se pudo subir la foto. Revisá los permisos del álbum (Storage).'
+  } finally {
+    subiendoFoto.value = false
+    target.value = ''
+  }
 }
 
 const abrirNuevo = () => {
@@ -288,7 +350,8 @@ const abrirEditar = (bowl: Bowl) => {
     category: bowl.category,
     protein_grams: bowl.protein_grams,
     emoji: bowl.emoji,
-    available: bowl.available
+    available: bowl.available,
+    image_url: bowl.image_url || ''
   })
   showForm.value = true
 }

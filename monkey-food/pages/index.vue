@@ -5,7 +5,7 @@
             class="bg-green-600 text-white p-3 sm:p-4 shadow-lg sticky top-0 z-40"
         >
             <div class="max-w-md mx-auto flex justify-between items-center">
-                <h1 class="text-lg sm:text-xl font-bold">Food</h1>
+                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight">Monkey Food</h1>
                 <NuxtLink
                     to="/admin-login"
                     class="text-xs sm:text-sm opacity-80 hover:opacity-100 bg-white/20 px-2 py-1 rounded"
@@ -15,45 +15,32 @@
             </div>
         </header>
 
-        <!-- Info - Urgencia + Beneficio -->
-        <div class="bg-green-50 p-2 sm:p-3">
-            <p
-                class="text-center text-green-800 text-xs sm:text-sm font-medium"
-            >
-                {{
-                    bowlsDisponibles > 0
-                        ? `Solo ${bowlsDisponibles} bowls disponibles`
-                        : "Pedidos cerrados hoy"
-                }}
-            </p>
-            <p class="text-center text-green-700 text-xs mt-1">
-                Pedidos hasta las 14PM | Entregas 16:30-18:00PM
-            </p>
-        </div>
-
-        <!-- Beneficios -->
-        <div class="bg-white border-b border-gray-100 p-3">
-            <div
-                class="max-w-md mx-auto flex flex-col gap-1 text-xs text-gray-600"
-            >
-                <p><strong>30-40g proteína</strong> - ideal post-entreno</p>
-                <p>
-                    <strong>Ingredientes frescos</strong> - preparado cada día
+        <!-- Cabecera principal - texto negro, look real -->
+        <section class="bg-white border-b border-gray-200">
+            <div class="max-w-md mx-auto px-4 py-5 text-black">
+                <h2 class="text-2xl font-extrabold leading-tight">
+                    Comida saludable, hecha cada día
+                </h2>
+                <p class="text-base mt-1.5">
+                    Almuerzos completos con proteína, entregados a tu puerta.
                 </p>
-                <p><strong>Pide en 1 minuto</strong></p>
-            </div>
-        </div>
 
-        <!-- Confianza -->
-        <div class="bg-gray-50 p-2 border-b border-gray-200">
-            <div
-                class="max-w-md mx-auto flex justify-center gap-4 text-xs text-gray-500"
-            >
-                <span>Pago contra entrega</span>
-                <span>Preparado al momento</span>
-                <span>Entrega puntual</span>
+                <p class="text-base font-bold mt-4">
+                    {{
+                        bowlsDisponibles > 0
+                            ? `Hoy quedan ${bowlsDisponibles} platos`
+                            : "Hoy ya se agotó — volvé mañana"
+                    }}
+                </p>
+                <p class="text-base mt-1">
+                    Pedidos hasta las 14:00 · Entregas de 16:30 a 18:00
+                </p>
+
+                <p class="text-sm font-semibold mt-4">
+                    Pago contra entrega · Ingredientes frescos · +30g de proteína
+                </p>
             </div>
-        </div>
+        </section>
 
         <!-- Carrito flotante -->
         <div
@@ -91,8 +78,17 @@
                         :key="bowl.id"
                         class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col"
                     >
-                        <div class="text-center mb-2">
-                            <span class="text-3xl block">{{ bowl.emoji }}</span>
+                        <div class="mb-2">
+                            <div class="w-full h-28 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                                <img
+                                    v-if="bowl.image_url"
+                                    :src="bowl.image_url"
+                                    :alt="bowl.nombre"
+                                    class="w-full h-full object-cover"
+                                    loading="lazy"
+                                />
+                                <span v-else class="text-3xl">{{ bowl.emoji }}</span>
+                            </div>
                         </div>
                         <h3
                             class="font-bold text-gray-800 text-center text-sm leading-tight"
@@ -100,7 +96,7 @@
                             {{ bowl.nombre }}
                         </h3>
                         <p
-                            class="text-xs text-gray-500 text-center mt-1 line-clamp-2"
+                            class="text-xs text-gray-800 text-center mt-1 line-clamp-2"
                         >
                             {{ bowl.descripcion }}
                         </p>
@@ -113,7 +109,7 @@
                             class="mt-auto pt-2 flex items-center justify-between gap-2"
                         >
                             <span class="text-lg font-bold text-green-600"
-                                >$4</span
+                                >${{ bowl.price }}</span
                             >
                             <button
                                 @click="menuStore.agregarAlCarrito(bowl)"
@@ -137,8 +133,17 @@
                         :key="bowl.id"
                         class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col"
                     >
-                        <div class="text-center mb-2">
-                            <span class="text-3xl block">{{ bowl.emoji }}</span>
+                        <div class="mb-2">
+                            <div class="w-full h-28 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                                <img
+                                    v-if="bowl.image_url"
+                                    :src="bowl.image_url"
+                                    :alt="bowl.nombre"
+                                    class="w-full h-full object-cover"
+                                    loading="lazy"
+                                />
+                                <span v-else class="text-3xl">{{ bowl.emoji }}</span>
+                            </div>
                         </div>
                         <h3
                             class="font-bold text-gray-800 text-center text-sm leading-tight"
@@ -146,7 +151,7 @@
                             {{ bowl.nombre }}
                         </h3>
                         <p
-                            class="text-xs text-gray-500 text-center mt-1 line-clamp-2"
+                            class="text-xs text-gray-800 text-center mt-1 line-clamp-2"
                         >
                             {{ bowl.descripcion }}
                         </p>
@@ -159,7 +164,7 @@
                             class="mt-auto pt-2 flex items-center justify-between gap-2"
                         >
                             <span class="text-lg font-bold text-green-600"
-                                >$4</span
+                                >${{ bowl.price }}</span
                             >
                             <button
                                 @click="menuStore.agregarAlCarrito(bowl)"

@@ -9,6 +9,7 @@ export interface Bowl {
   protein_grams: string
   emoji: string
   available: boolean
+  image_url?: string
 }
 
 export interface Pedido {
@@ -39,6 +40,7 @@ export interface ProductoInput {
   protein_grams: string
   emoji: string
   available: boolean
+  image_url: string
 }
 
 export const useMenuStore = defineStore('menu', {
@@ -95,7 +97,8 @@ export const useMenuStore = defineStore('menu', {
           category: p.category || 'animal',
           protein_grams: p.protein_grams || '30-40g',
           emoji: p.emoji || '',
-          available: p.available
+          available: p.available,
+          image_url: p.image_url || ''
         }))
       }
     },
@@ -269,6 +272,22 @@ export const useMenuStore = defineStore('menu', {
     },
 
     // === CRUD de productos (menú) — persiste en Supabase ===
+    // Subir foto de un plato al bucket "productos" y devolver su URL pública
+    async subirFoto(file: File): Promise<string> {
+      const client = useSupabaseClient()
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const path = `plato-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const { error } = await client.storage
+        .from('productos')
+        .upload(path, file, { cacheControl: '3600', upsert: true, contentType: file.type })
+      if (error) {
+        console.error('Error subiendo foto:', error)
+        throw error
+      }
+      const { data } = client.storage.from('productos').getPublicUrl(path)
+      return data.publicUrl
+    },
+
     async crearProducto(payload: ProductoInput) {
       const client = useSupabaseClient()
       const { error } = await client.from('products').insert({
@@ -278,7 +297,8 @@ export const useMenuStore = defineStore('menu', {
         category: payload.category,
         protein_grams: payload.protein_grams,
         emoji: payload.emoji,
-        available: payload.available
+        available: payload.available,
+        image_url: payload.image_url || null
       })
       if (error) {
         console.error('Error creando producto:', error)
@@ -296,7 +316,8 @@ export const useMenuStore = defineStore('menu', {
         category: payload.category,
         protein_grams: payload.protein_grams,
         emoji: payload.emoji,
-        available: payload.available
+        available: payload.available,
+        image_url: payload.image_url || null
       }).eq('id', id)
       if (error) {
         console.error('Error actualizando producto:', error)
