@@ -1,94 +1,132 @@
 <template>
-    <div class="min-h-screen bg-[#fffdf9]">
-        <!-- Admin discreto -->
-        <div class="max-w-md mx-auto px-5 pt-3 flex justify-end">
-            <NuxtLink
-                to="/admin-login"
-                class="text-xs text-gray-400 hover:text-gray-600"
-            >
-                Admin
-            </NuxtLink>
-        </div>
-
-        <!-- Cabecera -->
-        <header class="max-w-md mx-auto px-5 pt-1 text-center">
-            <h1 class="text-3xl font-extrabold text-black tracking-tight">
-                food fitness
-            </h1>
-            <p class="text-gray-500 mt-1">
-                comida real, hecha con amor · Riobamba
-            </p>
-        </header>
-
-        <!-- Banner info -->
-        <div class="max-w-md mx-auto px-5 mt-5">
-            <div
-                class="bg-blue-100 rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
-            >
-                <span class="text-blue-800 font-bold leading-tight">
-                    {{
-                        disponibles > 0
-                            ? `hoy quedan ${disponibles} pedidos`
-                            : "hoy ya cerramos"
-                    }}
-                </span>
-                <span
-                    class="text-blue-700 text-sm flex items-center gap-1.5 shrink-0"
-                >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        class="w-4 h-4"
-                    >
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="M12 7v5l3 2" stroke-linecap="round" />
-                    </svg>
-                    pedidos hasta las 9:00am
-                </span>
-            </div>
-        </div>
-
-        <!-- Lista de platos -->
-        <main
-            class="max-w-md mx-auto px-5 mt-4 pb-28"
-            :class="{ 'opacity-50 pointer-events-none': disponibles === 0 }"
+    <div class="min-h-screen bg-[var(--ff-cream)]">
+        <!-- Header estilo Cobra (verde oscuro) -->
+        <header
+            class="sticky top-0 z-40 bg-[var(--ff-dark)] text-white"
         >
             <div
-                v-for="plato in platos"
-                :key="plato.id"
-                class="flex items-center justify-between gap-3 py-4 border-b border-gray-100"
+                class="max-w-md mx-auto px-4 py-3 flex items-center justify-between"
             >
-                <div class="min-w-0">
-                    <p class="font-bold text-black">{{ plato.nombre }}</p>
-                    <p class="text-sm text-gray-500 mt-0.5">
+                <div class="flex items-center gap-2.5">
+                    <span
+                        class="w-9 h-9 rounded-xl bg-white/15 text-white font-display flex items-center justify-center text-sm"
+                        >ff</span
+                    >
+                    <div class="leading-tight">
+                        <p class="font-display text-white text-[17px]">
+                            food fitness
+                        </p>
+                        <p class="text-[11px] text-white/60">Riobamba</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span
+                        class="hidden xs:flex items-center gap-1.5 text-xs text-white/80"
+                    >
+                        <span
+                            class="w-2 h-2 rounded-full bg-[var(--ff-green)]"
+                        ></span>
+                        abierto
+                    </span>
+                    <NuxtLink
+                        to="/admin-login"
+                        class="text-xs text-white/60 hover:text-white"
+                    >
+                        Admin
+                    </NuxtLink>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sub-cabecera -->
+        <div class="max-w-md mx-auto px-4 pt-4">
+            <h1 class="font-display text-2xl text-gray-900 leading-tight">
+                Menú de hoy
+            </h1>
+            <p class="text-sm text-gray-500 mt-0.5">
+                comida real, hecha con amor ·
+                <span class="font-semibold text-[var(--ff-green)]">{{
+                    disponibles > 0
+                        ? `quedan ${disponibles} pedidos`
+                        : "cerrado por hoy"
+                }}</span>
+            </p>
+        </div>
+
+        <!-- Categorías -->
+        <div
+            v-if="categorias.length > 0"
+            class="max-w-md mx-auto px-4 mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
+        >
+            <button
+                @click="categoriaSel = 'todo'"
+                :class="[
+                    'shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors',
+                    categoriaSel === 'todo'
+                        ? 'bg-[var(--ff-dark)] text-white border-[var(--ff-dark)]'
+                        : 'bg-white text-[var(--ff-dark)] border-[var(--ff-dark)]/25',
+                ]"
+            >
+                Todo
+            </button>
+            <button
+                v-for="c in categorias"
+                :key="c"
+                @click="categoriaSel = c"
+                :class="[
+                    'shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border transition-colors capitalize',
+                    categoriaSel === c
+                        ? 'bg-[var(--ff-dark)] text-white border-[var(--ff-dark)]'
+                        : 'bg-white text-[var(--ff-dark)] border-[var(--ff-dark)]/25',
+                ]"
+            >
+                {{ catEmoji(c) }} {{ catLabel(c) }}
+            </button>
+        </div>
+
+        <!-- Grilla de productos -->
+        <main
+            class="max-w-md mx-auto px-4 mt-4 pb-28"
+            :class="{ 'opacity-50 pointer-events-none': disponibles === 0 }"
+        >
+            <div class="grid grid-cols-2 gap-3">
+                <div
+                    v-for="plato in platos"
+                    :key="plato.id"
+                    class="bg-white rounded-2xl border border-[var(--ff-dark)]/15 p-2.5 flex flex-col shadow-sm"
+                >
+                    <div
+                        class="aspect-square rounded-xl bg-[var(--ff-sage)] overflow-hidden flex items-center justify-center mb-2"
+                    >
+                        <img
+                            v-if="plato.image_url"
+                            :src="plato.image_url"
+                            :alt="plato.nombre"
+                            class="w-full h-full object-cover"
+                            loading="lazy"
+                        />
+                        <span v-else class="text-4xl">{{
+                            plato.emoji || "🍽️"
+                        }}</span>
+                    </div>
+                    <p class="font-bold text-gray-900 text-sm leading-tight">
+                        {{ plato.nombre }}
+                    </p>
+                    <p class="text-xs text-gray-500 line-clamp-1 mt-0.5">
                         {{ plato.descripcion }}
                     </p>
-                </div>
-                <div class="flex items-center gap-3 shrink-0">
-                    <span class="font-bold text-black"
-                        >${{ plato.price.toFixed(2) }}</span
-                    >
-                    <button
-                        @click="menuStore.agregarAlCarrito(plato)"
-                        class="flex items-center gap-1.5 border border-gray-300 rounded-xl px-3 py-2 text-sm font-medium text-black hover:bg-gray-50 active:scale-95 transition"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            class="w-4 h-4"
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="font-extrabold text-[var(--ff-green)]"
+                            >${{ plato.price.toFixed(2) }}</span
                         >
-                            <path
-                                d="M21 11.5a8.38 8.38 0 01-8.5 8.5 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8A8.5 8.5 0 0112.5 3 8.5 8.5 0 0121 11.5z"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            />
-                        </svg>
-                        pedir
-                    </button>
+                        <button
+                            @click="menuStore.agregarAlCarrito(plato)"
+                            class="w-9 h-9 rounded-full bg-[var(--ff-dark)] text-white text-xl leading-none flex items-center justify-center hover:opacity-90 active:scale-90 transition"
+                            aria-label="agregar"
+                        >
+                            +
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -96,45 +134,31 @@
                 v-if="platos.length === 0"
                 class="text-center text-gray-400 py-10"
             >
-                No hay productos disponibles hoy.
+                No hay platos en esta categoría hoy.
             </p>
 
-            <!-- Info del negocio -->
-            <div class="mt-8 space-y-2.5 text-sm text-gray-600">
-                <p class="flex items-start gap-2.5">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        class="w-4 h-4 mt-0.5 shrink-0"
-                    >
-                        <path
-                            d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0118 0z"
-                        />
-                        <circle cx="12" cy="10" r="3" />
-                    </svg>
+            <!-- Confianza -->
+            <div
+                class="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500"
+            >
+                <span class="flex items-center gap-1">
                     <span
-                        >agosto: gimnasios de la comunidad · septiembre: colegio
-                        y universidad</span
-                    >
-                </p>
-                <p class="flex items-start gap-2.5">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        class="w-4 h-4 mt-0.5 shrink-0"
-                    >
-                        <path
-                            d="M20 6L9 17l-5-5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        />
-                    </svg>
-                    <span>pago contra entrega · ingredientes frescos</span>
-                </p>
+                        class="w-1.5 h-1.5 rounded-full bg-[var(--ff-green)]"
+                    ></span>
+                    Pago contra entrega
+                </span>
+                <span class="flex items-center gap-1">
+                    <span
+                        class="w-1.5 h-1.5 rounded-full bg-[var(--ff-green)]"
+                    ></span>
+                    Ingredientes frescos
+                </span>
+                <span class="flex items-center gap-1">
+                    <span
+                        class="w-1.5 h-1.5 rounded-full bg-[var(--ff-green)]"
+                    ></span>
+                    Pedidos hasta las 9:00am
+                </span>
             </div>
         </main>
 
@@ -145,14 +169,18 @@
         >
             <button
                 @click="mostrarCarrito = true"
-                class="w-full sm:w-auto bg-black text-white px-4 py-3 sm:px-6 rounded-full shadow-lg flex items-center justify-center gap-3 active:scale-95 transition"
+                class="w-full sm:w-auto bg-[var(--ff-dark)] text-white px-4 py-3.5 sm:px-6 rounded-2xl shadow-lg flex items-center justify-between gap-3 hover:opacity-95 active:scale-[0.98] transition"
             >
-                <span class="font-bold">ver mi pedido</span>
-                <span
-                    class="bg-white text-black px-2 py-0.5 rounded-full font-bold"
-                >
-                    ${{ menuStore.totalCarrito.toFixed(2) }}
+                <span class="flex items-center gap-2 font-bold">
+                    <span
+                        class="bg-white/20 rounded-full w-6 h-6 flex items-center justify-center text-sm"
+                        >{{ totalItems }}</span
+                    >
+                    ver mi pedido
                 </span>
+                <span class="font-extrabold text-[var(--ff-green)]"
+                    >${{ menuStore.totalCarrito.toFixed(2) }}</span
+                >
             </button>
         </div>
 
@@ -162,15 +190,15 @@
             class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center sm:justify-center"
         >
             <div
-                class="bg-white w-full max-w-md mx-auto rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto"
+                class="bg-white w-full max-w-md mx-auto rounded-t-2xl sm:rounded-2xl p-4 max-h-[88vh] overflow-y-auto"
             >
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-black">tu pedido</h2>
+                    <h2 class="font-display text-lg text-gray-900">tu pedido</h2>
                     <button
                         @click="mostrarCarrito = false"
                         class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600"
                     >
-                        X
+                        ✕
                     </button>
                 </div>
 
@@ -185,25 +213,35 @@
                     <div
                         v-for="item in menuStore.carrito"
                         :key="item.product.id"
-                        class="flex justify-between items-center border-b pb-3"
+                        class="flex justify-between items-center border-b border-gray-100 pb-3"
                     >
-                        <div class="flex-1">
-                            <p class="font-medium text-sm text-black">
+                        <div class="flex-1 min-w-0">
+                            <p
+                                class="font-medium text-sm text-gray-900 truncate"
+                            >
                                 {{ item.product.nombre }}
                             </p>
                             <p class="text-xs text-gray-500">
-                                x{{ item.cantidad }}
+                                ${{ item.product.price.toFixed(2) }} c/u
                             </p>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <span class="font-bold text-black"
-                                >${{ (item.product.price * item.cantidad).toFixed(2) }}</span
-                            >
+                        <div class="flex items-center gap-2">
                             <button
-                                @click="menuStore.removerDelCarrito(item.product.id)"
-                                class="w-7 h-7 flex items-center justify-center bg-red-100 text-red-600 rounded-full text-xs"
+                                @click="
+                                    menuStore.removerDelCarrito(item.product.id)
+                                "
+                                class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-700 rounded-full"
                             >
-                                -
+                                −
+                            </button>
+                            <span class="w-6 text-center font-semibold">{{
+                                item.cantidad
+                            }}</span>
+                            <button
+                                @click="menuStore.agregarAlCarrito(item.product)"
+                                class="w-7 h-7 flex items-center justify-center bg-[var(--ff-dark)] text-white rounded-full"
+                            >
+                                +
                             </button>
                         </div>
                     </div>
@@ -211,11 +249,15 @@
 
                 <div
                     v-if="menuStore.carrito.length > 0"
-                    class="border-t pt-4 mb-4"
+                    class="border-t border-gray-100 pt-4 mb-4"
                 >
-                    <div class="flex justify-between text-xl font-bold text-black">
-                        <span>total:</span>
-                        <span>${{ menuStore.totalCarrito.toFixed(2) }}</span>
+                    <div
+                        class="flex justify-between text-xl font-extrabold text-gray-900"
+                    >
+                        <span>total</span>
+                        <span class="text-[var(--ff-green)]"
+                            >${{ menuStore.totalCarrito.toFixed(2) }}</span
+                        >
                     </div>
                 </div>
 
@@ -224,23 +266,23 @@
                     <input
                         v-model="nombreCliente"
                         placeholder="tu nombre *"
-                        class="w-full p-3 border rounded-xl text-base"
+                        class="w-full p-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:border-green-500"
                     />
                     <input
                         v-model="teléfonoCliente"
                         placeholder="tu WhatsApp * (ej: 0991234567)"
-                        class="w-full p-3 border rounded-xl text-base"
+                        class="w-full p-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:border-green-500"
                         type="tel"
                     />
                     <input
                         v-model="direcciónCliente"
                         placeholder="dirección de entrega *"
-                        class="w-full p-3 border rounded-xl text-base"
+                        class="w-full p-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:border-green-500"
                     />
                     <input
                         v-model="horaEntrega"
                         placeholder="hora de entrega (opcional)"
-                        class="w-full p-3 border rounded-xl text-base"
+                        class="w-full p-3 border border-gray-200 rounded-xl text-base focus:outline-none focus:border-green-500"
                     />
                 </div>
 
@@ -253,7 +295,7 @@
                         menuStore.carrito.length === 0 ||
                         disponibles === 0
                     "
-                    class="w-full bg-black text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition"
+                    class="w-full bg-[var(--ff-dark)] text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 hover:opacity-95 active:scale-[0.98] transition"
                 >
                     enviar pedido por WhatsApp
                 </button>
@@ -272,17 +314,55 @@ const nombreCliente = ref("");
 const teléfonoCliente = ref("");
 const direcciónCliente = ref("");
 const horaEntrega = ref("");
+const categoriaSel = ref("todo");
 
-// Todos los platos disponibles (lista plana, sin categorías)
-const platos = computed(() => menuStore.bowls.filter((b) => b.available));
+// Platos disponibles (activos)
+const disponiblesLista = computed(() =>
+    menuStore.bowls.filter((b) => b.available),
+);
+
+// Categorías presentes en los platos activos
+const categorias = computed(() => [
+    ...new Set(disponiblesLista.value.map((b) => b.category || "otros")),
+]);
+
+// Platos filtrados por categoría seleccionada
+const platos = computed(() => {
+    if (categoriaSel.value === "todo") return disponiblesLista.value;
+    return disponiblesLista.value.filter(
+        (b) => (b.category || "otros") === categoriaSel.value,
+    );
+});
+
+const catLabel = (c: string) =>
+    (({
+        desayuno: "Desayunos",
+        almuerzo: "Almuerzos",
+        menestra: "Menestras",
+        animal: "Proteína animal",
+        vegetal: "Proteína vegetal",
+        bebida: "Bebidas",
+    }) as Record<string, string>)[c] || c;
+
+const catEmoji = (c: string) =>
+    (({
+        desayuno: "🍳",
+        almuerzo: "🍽️",
+        menestra: "🫘",
+        animal: "🍗",
+        vegetal: "🫘",
+        bebida: "🥤",
+    }) as Record<string, string>)[c] || "🍴";
+
+const totalItems = computed(() =>
+    menuStore.carrito.reduce((s, i) => s + i.cantidad, 0),
+);
 
 // Cupos del día (desde config del admin)
 const disponibles = computed(() => {
     if (typeof window === "undefined") return 12;
     const config = localStorage.getItem("monkey-admin-config");
-    if (config) {
-        return JSON.parse(config).bowlsDisponibles ?? 12;
-    }
+    if (config) return JSON.parse(config).bowlsDisponibles ?? 12;
     return 12;
 });
 
@@ -291,7 +371,6 @@ onMounted(async () => {
 });
 
 const enviarPedido = async () => {
-    // 1. Resumen ANTES de guardar (crearPedidoSupabase vacía el carrito)
     const itemsAgrupados = menuStore.carrito.reduce(
         (acc, item) => {
             const key = item.product.nombre;
@@ -308,7 +387,6 @@ const enviarPedido = async () => {
     const total = menuStore.totalCarrito;
     const notas = `${resumenItems} | Entrega: ${horaEntrega.value || "A convenir"}`;
 
-    // 2. Guardar en Supabase (aparece en el panel)
     let guardado = null;
     try {
         guardado = await menuStore.crearPedidoSupabase(
@@ -328,7 +406,6 @@ const enviarPedido = async () => {
         return;
     }
 
-    // 3. Abrir WhatsApp con el pedido redactado
     let mensaje = `Hola, quiero pedir:\n\n`;
     Object.values(itemsAgrupados).forEach((item) => {
         mensaje += `- ${item.cantidad}x ${item.product.nombre}\n`;

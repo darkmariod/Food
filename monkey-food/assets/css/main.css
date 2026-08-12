@@ -3,15 +3,27 @@
 :root {
   --brand: #22c55e; /* green-500 */
   --brand-light: #f0fdf4;
+  /* Paleta estilo Cobra */
+  --ff-dark: #1c3b28;   /* verde oscuro: header, botones, pills activas */
+  --ff-green: #2f9e44;  /* verde brillante: precios, acentos */
+  --ff-cream: #efece0;  /* fondo crema */
+  --ff-sage: #e7efe7;   /* tinte del área de foto */
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #fffbf5;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Títulos display (misma tipografía que Cobra) */
+.font-display {
+  font-family: 'Archivo Black', 'Inter', sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 /* Scrollbar hide */
