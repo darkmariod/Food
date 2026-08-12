@@ -1,46 +1,142 @@
 <template>
-    <div class="min-h-screen bg-gray-50">
-        <!-- Header -->
-        <header
-            class="bg-green-600 text-white p-3 sm:p-4 shadow-lg sticky top-0 z-40"
-        >
-            <div class="max-w-md mx-auto flex justify-between items-center">
-                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight">Monkey Food</h1>
-                <NuxtLink
-                    to="/admin-login"
-                    class="text-xs sm:text-sm opacity-80 hover:opacity-100 bg-white/20 px-2 py-1 rounded"
-                >
-                    Admin
-                </NuxtLink>
-            </div>
+    <div class="min-h-screen bg-[#fffdf9]">
+        <!-- Admin discreto -->
+        <div class="max-w-md mx-auto px-5 pt-3 flex justify-end">
+            <NuxtLink
+                to="/admin-login"
+                class="text-xs text-gray-400 hover:text-gray-600"
+            >
+                Admin
+            </NuxtLink>
+        </div>
+
+        <!-- Cabecera -->
+        <header class="max-w-md mx-auto px-5 pt-1 text-center">
+            <h1 class="text-3xl font-extrabold text-black tracking-tight">
+                food fitness
+            </h1>
+            <p class="text-gray-500 mt-1">
+                comida real, hecha con amor · Riobamba
+            </p>
         </header>
 
-        <!-- Cabecera principal - texto negro, look real -->
-        <section class="bg-white border-b border-gray-200">
-            <div class="max-w-md mx-auto px-4 py-5 text-black">
-                <h2 class="text-2xl font-extrabold leading-tight">
-                    Comida saludable, hecha cada día
-                </h2>
-                <p class="text-base mt-1.5">
-                    Almuerzos completos con proteína, entregados a tu puerta.
-                </p>
-
-                <p class="text-base font-bold mt-4">
+        <!-- Banner info -->
+        <div class="max-w-md mx-auto px-5 mt-5">
+            <div
+                class="bg-blue-100 rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
+            >
+                <span class="text-blue-800 font-bold leading-tight">
                     {{
-                        bowlsDisponibles > 0
-                            ? `Hoy quedan ${bowlsDisponibles} platos`
-                            : "Hoy ya se agotó — volvé mañana"
+                        disponibles > 0
+                            ? `hoy quedan ${disponibles} pedidos`
+                            : "hoy ya cerramos"
                     }}
-                </p>
-                <p class="text-base mt-1">
-                    Pedidos hasta las 14:00 · Entregas de 16:30 a 18:00
-                </p>
+                </span>
+                <span
+                    class="text-blue-700 text-sm flex items-center gap-1.5 shrink-0"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        class="w-4 h-4"
+                    >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" stroke-linecap="round" />
+                    </svg>
+                    pedidos hasta las 9:00am
+                </span>
+            </div>
+        </div>
 
-                <p class="text-sm font-semibold mt-4">
-                    Pago contra entrega · Ingredientes frescos · +30g de proteína
+        <!-- Lista de platos -->
+        <main
+            class="max-w-md mx-auto px-5 mt-4 pb-28"
+            :class="{ 'opacity-50 pointer-events-none': disponibles === 0 }"
+        >
+            <div
+                v-for="plato in platos"
+                :key="plato.id"
+                class="flex items-center justify-between gap-3 py-4 border-b border-gray-100"
+            >
+                <div class="min-w-0">
+                    <p class="font-bold text-black">{{ plato.nombre }}</p>
+                    <p class="text-sm text-gray-500 mt-0.5">
+                        {{ plato.descripcion }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                    <span class="font-bold text-black"
+                        >${{ plato.price.toFixed(2) }}</span
+                    >
+                    <button
+                        @click="menuStore.agregarAlCarrito(plato)"
+                        class="flex items-center gap-1.5 border border-gray-300 rounded-xl px-3 py-2 text-sm font-medium text-black hover:bg-gray-50 active:scale-95 transition"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            class="w-4 h-4"
+                        >
+                            <path
+                                d="M21 11.5a8.38 8.38 0 01-8.5 8.5 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8A8.5 8.5 0 0112.5 3 8.5 8.5 0 0121 11.5z"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                        pedir
+                    </button>
+                </div>
+            </div>
+
+            <p
+                v-if="platos.length === 0"
+                class="text-center text-gray-400 py-10"
+            >
+                No hay productos disponibles hoy.
+            </p>
+
+            <!-- Info del negocio -->
+            <div class="mt-8 space-y-2.5 text-sm text-gray-600">
+                <p class="flex items-start gap-2.5">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        class="w-4 h-4 mt-0.5 shrink-0"
+                    >
+                        <path
+                            d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0118 0z"
+                        />
+                        <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <span
+                        >agosto: gimnasios de la comunidad · septiembre: colegio
+                        y universidad</span
+                    >
+                </p>
+                <p class="flex items-start gap-2.5">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        class="w-4 h-4 mt-0.5 shrink-0"
+                    >
+                        <path
+                            d="M20 6L9 17l-5-5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                    <span>pago contra entrega · ingredientes frescos</span>
                 </p>
             </div>
-        </section>
+        </main>
 
         <!-- Carrito flotante -->
         <div
@@ -49,134 +145,16 @@
         >
             <button
                 @click="mostrarCarrito = true"
-                class="w-full sm:w-auto bg-green-600 text-white px-4 py-3 sm:px-6 rounded-full shadow-lg flex items-center justify-center gap-3 hover:bg-green-700 transition active:scale-95"
+                class="w-full sm:w-auto bg-black text-white px-4 py-3 sm:px-6 rounded-full shadow-lg flex items-center justify-center gap-3 active:scale-95 transition"
             >
-                <span class="font-bold">Ordenar ahora</span>
+                <span class="font-bold">ver mi pedido</span>
                 <span
-                    class="bg-white text-green-600 px-2 py-0.5 rounded-full font-bold"
+                    class="bg-white text-black px-2 py-0.5 rounded-full font-bold"
                 >
-                    ${{ menuStore.totalCarrito }}
+                    ${{ menuStore.totalCarrito.toFixed(2) }}
                 </span>
             </button>
         </div>
-
-        <!-- Menú -->
-        <main
-            class="max-w-md mx-auto p-3 sm:p-4 pb-24"
-            :class="{
-                'opacity-50 pointer-events-none': bowlsDisponibles === 0,
-            }"
-        >
-            <!-- Proteína Animal -->
-            <section class="mb-6">
-                <h2 class="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                    Proteína Animal
-                </h2>
-                <div class="grid grid-cols-2 gap-3">
-                    <div
-                        v-for="bowl in menuStore.bowlsAnimal"
-                        :key="bowl.id"
-                        class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col"
-                    >
-                        <div class="mb-2">
-                            <div class="w-full h-28 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                                <img
-                                    v-if="bowl.image_url"
-                                    :src="bowl.image_url"
-                                    :alt="bowl.nombre"
-                                    class="w-full h-full object-cover"
-                                    loading="lazy"
-                                />
-                                <span v-else class="text-3xl">{{ bowl.emoji }}</span>
-                            </div>
-                        </div>
-                        <h3
-                            class="font-bold text-gray-800 text-center text-sm leading-tight"
-                        >
-                            {{ bowl.nombre }}
-                        </h3>
-                        <p
-                            class="text-xs text-gray-800 text-center mt-1 line-clamp-2"
-                        >
-                            {{ bowl.descripcion }}
-                        </p>
-                        <p
-                            class="text-xs text-green-600 text-center mt-1 font-medium"
-                        >
-                            {{ bowl.protein_grams }} proteína
-                        </p>
-                        <div
-                            class="mt-auto pt-2 flex items-center justify-between gap-2"
-                        >
-                            <span class="text-lg font-bold text-green-600"
-                                >${{ bowl.price }}</span
-                            >
-                            <button
-                                @click="menuStore.agregarAlCarrito(bowl)"
-                                class="flex-1 bg-green-600 text-white py-2 rounded-full text-sm font-medium hover:bg-green-700 active:scale-95 transition"
-                            >
-                                Agregar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Proteína Vegetal -->
-            <section class="mb-6">
-                <h2 class="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                    Proteína Vegetal
-                </h2>
-                <div class="grid grid-cols-2 gap-3">
-                    <div
-                        v-for="bowl in menuStore.bowlsVegetal"
-                        :key="bowl.id"
-                        class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col"
-                    >
-                        <div class="mb-2">
-                            <div class="w-full h-28 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                                <img
-                                    v-if="bowl.image_url"
-                                    :src="bowl.image_url"
-                                    :alt="bowl.nombre"
-                                    class="w-full h-full object-cover"
-                                    loading="lazy"
-                                />
-                                <span v-else class="text-3xl">{{ bowl.emoji }}</span>
-                            </div>
-                        </div>
-                        <h3
-                            class="font-bold text-gray-800 text-center text-sm leading-tight"
-                        >
-                            {{ bowl.nombre }}
-                        </h3>
-                        <p
-                            class="text-xs text-gray-800 text-center mt-1 line-clamp-2"
-                        >
-                            {{ bowl.descripcion }}
-                        </p>
-                        <p
-                            class="text-xs text-green-600 text-center mt-1 font-medium"
-                        >
-                            {{ bowl.protein_grams }} proteína
-                        </p>
-                        <div
-                            class="mt-auto pt-2 flex items-center justify-between gap-2"
-                        >
-                            <span class="text-lg font-bold text-green-600"
-                                >${{ bowl.price }}</span
-                            >
-                            <button
-                                @click="menuStore.agregarAlCarrito(bowl)"
-                                class="flex-1 bg-green-600 text-white py-2 rounded-full text-sm font-medium hover:bg-green-700 active:scale-95 transition"
-                            >
-                                Agregar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
 
         <!-- Modal Carrito -->
         <div
@@ -187,7 +165,7 @@
                 class="bg-white w-full max-w-md mx-auto rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto"
             >
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold">Tu Pedido</h2>
+                    <h2 class="text-lg font-bold text-black">tu pedido</h2>
                     <button
                         @click="mostrarCarrito = false"
                         class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600"
@@ -200,8 +178,7 @@
                     v-if="menuStore.carrito.length === 0"
                     class="text-center py-8 text-gray-500"
                 >
-                    <p class="text-4xl mb-2">🛒</p>
-                    <p>Tu carrito está vacío</p>
+                    <p>tu pedido está vacío</p>
                 </div>
 
                 <div v-else class="space-y-3 mb-4">
@@ -211,7 +188,7 @@
                         class="flex justify-between items-center border-b pb-3"
                     >
                         <div class="flex-1">
-                            <p class="font-medium text-sm">
+                            <p class="font-medium text-sm text-black">
                                 {{ item.product.nombre }}
                             </p>
                             <p class="text-xs text-gray-500">
@@ -219,13 +196,11 @@
                             </p>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="font-bold"
-                                >${{ item.product.price * item.cantidad }}</span
+                            <span class="font-bold text-black"
+                                >${{ (item.product.price * item.cantidad).toFixed(2) }}</span
                             >
                             <button
-                                @click="
-                                    menuStore.removerDelCarrito(item.product.id)
-                                "
+                                @click="menuStore.removerDelCarrito(item.product.id)"
                                 class="w-7 h-7 flex items-center justify-center bg-red-100 text-red-600 rounded-full text-xs"
                             >
                                 -
@@ -238,11 +213,9 @@
                     v-if="menuStore.carrito.length > 0"
                     class="border-t pt-4 mb-4"
                 >
-                    <div class="flex justify-between text-xl font-bold">
-                        <span>Total:</span>
-                        <span class="text-green-600"
-                            >${{ menuStore.totalCarrito }}</span
-                        >
+                    <div class="flex justify-between text-xl font-bold text-black">
+                        <span>total:</span>
+                        <span>${{ menuStore.totalCarrito.toFixed(2) }}</span>
                     </div>
                 </div>
 
@@ -250,23 +223,23 @@
                 <div v-if="menuStore.carrito.length > 0" class="space-y-3 mb-4">
                     <input
                         v-model="nombreCliente"
-                        placeholder="Tu nombre *"
+                        placeholder="tu nombre *"
                         class="w-full p-3 border rounded-xl text-base"
                     />
                     <input
                         v-model="teléfonoCliente"
-                        placeholder="Tu WhatsApp * (ej: 0991234567)"
+                        placeholder="tu WhatsApp * (ej: 0991234567)"
                         class="w-full p-3 border rounded-xl text-base"
                         type="tel"
                     />
                     <input
                         v-model="direcciónCliente"
-                        placeholder="Dirección de entrega *"
+                        placeholder="dirección de entrega *"
                         class="w-full p-3 border rounded-xl text-base"
                     />
                     <input
                         v-model="horaEntrega"
-                        placeholder="Hora de entrega (ej: 6:30 PM)"
+                        placeholder="hora de entrega (opcional)"
                         class="w-full p-3 border rounded-xl text-base"
                     />
                 </div>
@@ -278,11 +251,11 @@
                         !teléfonoCliente ||
                         !direcciónCliente ||
                         menuStore.carrito.length === 0 ||
-                        bowlsDisponibles === 0
+                        disponibles === 0
                     "
-                    class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition"
+                    class="w-full bg-black text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition"
                 >
-                    Enviar pedido por WhatsApp
+                    enviar pedido por WhatsApp
                 </button>
             </div>
         </div>
@@ -300,14 +273,17 @@ const teléfonoCliente = ref("");
 const direcciónCliente = ref("");
 const horaEntrega = ref("");
 
-// Configuración desde localStorage o valores por defecto
-const bowlsDisponibles = computed(() => {
-    if (typeof window === "undefined") return 10;
+// Todos los platos disponibles (lista plana, sin categorías)
+const platos = computed(() => menuStore.bowls.filter((b) => b.available));
+
+// Cupos del día (desde config del admin)
+const disponibles = computed(() => {
+    if (typeof window === "undefined") return 12;
     const config = localStorage.getItem("monkey-admin-config");
     if (config) {
-        return JSON.parse(config).bowlsDisponibles || 10;
+        return JSON.parse(config).bowlsDisponibles ?? 12;
     }
-    return 10;
+    return 12;
 });
 
 onMounted(async () => {
@@ -315,13 +291,11 @@ onMounted(async () => {
 });
 
 const enviarPedido = async () => {
-    // 1. Armar el resumen ANTES de guardar (crearPedidoSupabase vacía el carrito)
+    // 1. Resumen ANTES de guardar (crearPedidoSupabase vacía el carrito)
     const itemsAgrupados = menuStore.carrito.reduce(
         (acc, item) => {
             const key = item.product.nombre;
-            if (!acc[key]) {
-                acc[key] = { ...item, cantidad: 0 };
-            }
+            if (!acc[key]) acc[key] = { ...item, cantidad: 0 };
             acc[key].cantidad += item.cantidad;
             return acc;
         },
@@ -332,11 +306,9 @@ const enviarPedido = async () => {
         .map((item) => `${item.cantidad}x ${item.product.nombre}`)
         .join(", ");
     const total = menuStore.totalCarrito;
-
-    // Notas que verá el dueño en el panel: qué pidió + hora de entrega
     const notas = `${resumenItems} | Entrega: ${horaEntrega.value || "A convenir"}`;
 
-    // 2. Guardar el pedido en Supabase (aparece en el panel del dueño)
+    // 2. Guardar en Supabase (aparece en el panel)
     let guardado = null;
     try {
         guardado = await menuStore.crearPedidoSupabase(
@@ -356,12 +328,12 @@ const enviarPedido = async () => {
         return;
     }
 
-    // 3. Abrir WhatsApp con el pedido ya redactado
+    // 3. Abrir WhatsApp con el pedido redactado
     let mensaje = `Hola, quiero pedir:\n\n`;
     Object.values(itemsAgrupados).forEach((item) => {
         mensaje += `- ${item.cantidad}x ${item.product.nombre}\n`;
     });
-    mensaje += `\nTotal: $${total}\n\n`;
+    mensaje += `\nTotal: $${total.toFixed(2)}\n\n`;
     mensaje += `Direccion: ${direcciónCliente.value}\n`;
     mensaje += `Hora de entrega: ${horaEntrega.value || "A convenir"}\n`;
     mensaje += `Cliente: ${nombreCliente.value}\n`;
@@ -376,6 +348,6 @@ const enviarPedido = async () => {
     direcciónCliente.value = "";
     horaEntrega.value = "";
 
-    alert("Pedido enviado! Seras redirigido a WhatsApp.");
+    alert("¡Pedido enviado! Te redirigimos a WhatsApp.");
 };
 </script>
